@@ -1,0 +1,13 @@
+.env.local
+.env
+node_modules
+.next
+firebase-debug.log
+.firebase
+__pycache__
+*.pyc
+functions/venv
+
+# macOS
+.DS_Store
+
