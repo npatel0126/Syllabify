@@ -1,29 +1,37 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
-const AUTH_COOKIE_NAME = "syllabify_auth"; // TODO: replace with your actual auth token/cookie strategy.
-
-function isAuthed(req: NextRequest): boolean {
-  // TODO: integrate Firebase Auth session verification here.
-  return Boolean(req.cookies.get(AUTH_COOKIE_NAME)?.value);
-}
-
+// TODO: Integrate with Firebase Auth session/JWT verification.
+// This middleware is a placeholder scaffolding for route protection.
 export function middleware(req: NextRequest) {
-  const { pathname } = req.nextUrl;
+  const pathname = req.nextUrl.pathname;
 
-  const isProtected =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/course") ||
-    pathname.startsWith("/settings");
+  const isPublicAuthRoute =
+    pathname.startsWith("/login") || pathname.includes("/(auth)/login");
+  const isPublicPage =
+    pathname === "/" ||
+    pathname.startsWith("/api/google-calendar") ||
+    pathname.includes("/(auth)/onboarding");
 
-  if (isProtected && !isAuthed(req)) {
-    const url = new URL("/login", req.url);
-    return NextResponse.redirect(url);
+  // Basic guard placeholder (unauthenticated users are redirected).
+  // TODO: Replace with real auth checks.
+  const fakeIsAuthenticated = false;
+
+  if (!fakeIsAuthenticated) {
+    if (pathname.startsWith("/dashboard") || pathname.includes("/course/") || pathname.includes("/settings")) {
+      const url = new URL("/login", req.url);
+      return NextResponse.redirect(url);
+    }
+    if (pathname === "/login" || isPublicAuthRoute || isPublicPage) {
+      return NextResponse.next();
+    }
   }
 
-  if (pathname.startsWith("/login") && isAuthed(req)) {
-    const url = new URL("/dashboard", req.url);
-    return NextResponse.redirect(url);
+  // If authenticated and trying to visit login, redirect to dashboard.
+  if (fakeIsAuthenticated) {
+    if (pathname === "/login" || isPublicAuthRoute) {
+      const url = new URL("/dashboard", req.url);
+      return NextResponse.redirect(url);
+    }
   }
 
   return NextResponse.next();

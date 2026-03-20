@@ -1,54 +1,66 @@
-import type { Assignment, Grade } from "@/types";
+import type { Assignment, Grade, TargetGrade } from "@/types";
 
-export type LetterGrade =
-  | "A+"
-  | "A"
-  | "A-"
-  | "B+"
-  | "B"
-  | "B-"
-  | "C+"
-  | "C"
-  | "C-"
-  | "D+"
-  | "D"
-  | "D-"
-  | "F";
-
-// Returns the current weighted percentage (0-100).
 export function calculateWeightedGrade(assignments: Assignment[], grades: Grade[]): number {
-  // TODO: implement weighted average using assignment.gradeWeight and logged scores.
+  // TODO: Implement weighted grade calculation.
+  // Scaffolding default.
+  void assignments;
+  void grades;
   return 0;
 }
 
-// Returns projected weighted percentage given hypothetical scores for ungraded assignments.
 export function calculateProjectedGrade(
   assignments: Assignment[],
   grades: Grade[],
-  hypotheticals: Record<string, number> // assignmentId -> percentage score (0-100)
+  hypotheticals: Record<string, number>
 ): number {
-  // TODO: merge earned grade scores with hypothetical scores and compute final weighted result.
+  // TODO: Implement what-if projected grade.
+  void assignments;
+  void grades;
+  void hypotheticals;
   return 0;
 }
 
-// Returns, for each remaining assignment, the minimum earned percentage needed
-// to reach a target grade (or empty list if impossible).
 export function calculateMinimumNeeded(
   assignments: Assignment[],
   grades: Grade[],
-  targetGrade: LetterGrade
+  targetGrade: TargetGrade
 ): Array<{ assignmentId: string; minimumScore: number }> {
-  // TODO: compute minimum scores required per remaining assignment for target grade.
+  // TODO: Implement minimum scores required to hit target grade.
+  void assignments;
+  void grades;
+  void targetGrade;
   return [];
 }
 
-export function percentageToLetterGrade(percentage: number): LetterGrade {
-  // TODO: implement mapping rules.
-  return "F";
+export function percentageToLetterGrade(percentage: number): string {
+  // TODO: Implement letter grade mapping.
+  void percentage;
+  return "B";
 }
 
-export function letterGradeToMinPercentage(letter: LetterGrade): number {
-  // TODO: implement mapping rules.
-  return 0;
+export function letterGradeToMinPercentage(letter: TargetGrade): number {
+  // TODO: Implement min percentage thresholds for each target grade.
+  switch (letter) {
+    case "A+":
+      return 97;
+    case "A":
+      return 93;
+    case "A-":
+      return 90;
+    case "B+":
+      return 87;
+    case "B":
+      return 83;
+    case "B-":
+      return 80;
+    case "C+":
+      return 77;
+    case "C":
+      return 73;
+    case "C-":
+      return 70;
+    default:
+      return 70;
+  }
 }
 

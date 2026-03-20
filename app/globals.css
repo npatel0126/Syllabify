@@ -2,9 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Basic defaults for the app shell. */
+/* Black/blue/green baseline theme */
+:root {
+  color-scheme: dark;
+}
+
 html,
 body {
   height: 100%;
+}
+
+body {
+  background: #1a1a2e; /* dark */
+  color: #e5e7eb; /* neutral 200-300 */
 }
 
