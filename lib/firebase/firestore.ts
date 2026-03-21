@@ -1,94 +1,135 @@
 import {
   collection,
   doc,
+  addDoc,
   getDoc,
-  getDocs,
-  limit,
+  updateDoc,
   onSnapshot,
   orderBy,
   query,
-  setDoc,
-  updateDoc
+  where,
+  serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import type { Assignment, Grade, Syllabus, User } from "@/types";
 
-export function getUserDoc(userId: string): Promise<User | null> {
-  // TODO: Implement typed user document reads.
-  // Scaffolding return null to keep the app runnable.
-  return Promise.resolve(null);
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+export async function getUserDoc(userId: string): Promise<User | null> {
+  const snap = await getDoc(doc(db, "users", userId));
+  if (!snap.exists()) return null;
+  return { userId: snap.id, ...snap.data() } as User;
 }
 
-export function updateUserDoc(userId: string, data: Partial<User>): Promise<void> {
-  // TODO: Implement update via Firestore updateDoc.
-  return Promise.resolve();
+export async function updateUserDoc(userId: string, data: Partial<User>): Promise<void> {
+  await updateDoc(doc(db, "users", userId), { ...data });
 }
 
-export function getSyllabi(userId: string, onData: (syllabi: Syllabus[]) => void, onError?: (e: unknown) => void) {
-  // TODO: Implement real-time listener for syllabi.
-  // Return an unsubscribe function placeholder.
-  const noop = () => undefined;
-  void userId;
-  void onData;
-  void onError;
-  return noop;
+// ─── Syllabi ──────────────────────────────────────────────────────────────────
+
+export function getSyllabi(
+  userId: string,
+  onData: (syllabi: Syllabus[]) => void,
+  onError?: (e: unknown) => void
+): () => void {
+  const q = query(collection(db, "syllabi"), where("userId", "==", userId));
+  return onSnapshot(
+    q,
+    (snap) => {
+      const syllabi = snap.docs.map((d) => ({ syllabusId: d.id, ...d.data() } as Syllabus));
+      onData(syllabi);
+    },
+    (err) => onError?.(err)
+  );
 }
 
-export function getSyllabusById(syllabusId: string): Promise<Syllabus | null> {
-  // TODO: Implement single doc fetch.
-  return Promise.resolve(null);
+export async function getSyllabusById(syllabusId: string): Promise<Syllabus | null> {
+  const snap = await getDoc(doc(db, "syllabi", syllabusId));
+  if (!snap.exists()) return null;
+  return { syllabusId: snap.id, ...snap.data() } as Syllabus;
 }
+
+export async function createSyllabus(
+  data: Omit<Syllabus, "syllabusId" | "createdAt" | "updatedAt">
+): Promise<string> {
+  const ref = await addDoc(collection(db, "syllabi"), {
+    ...data,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function updateSyllabus(
+  syllabusId: string,
+  data: Partial<Omit<Syllabus, "syllabusId">>
+): Promise<void> {
+  await updateDoc(doc(db, "syllabi", syllabusId), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+// ─── Assignments ──────────────────────────────────────────────────────────────
 
 export function getAssignments(
   syllabusId: string,
   onData: (assignments: Assignment[]) => void,
   onError?: (e: unknown) => void
-) {
-  // TODO: Implement real-time listener with ordering by dueDate.
-  const noop = () => undefined;
-  void syllabusId;
-  void onData;
-  void onError;
-  return noop;
+): () => void {
+  const q = query(
+    collection(db, "assignments"),
+    where("syllabusId", "==", syllabusId),
+    orderBy("dueDate", "asc")
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const assignments = snap.docs.map((d) => ({ assignmentId: d.id, ...d.data() } as Assignment));
+      onData(assignments);
+    },
+    (err) => onError?.(err)
+  );
 }
 
-export function updateAssignment(assignmentId: string, data: Partial<Assignment>): Promise<void> {
-  // TODO: Implement update.
-  return Promise.resolve();
+export async function updateAssignment(
+  assignmentId: string,
+  data: Partial<Omit<Assignment, "assignmentId">>
+): Promise<void> {
+  await updateDoc(doc(db, "assignments", assignmentId), { ...data });
 }
+
+// ─── Grades ───────────────────────────────────────────────────────────────────
 
 export function getGrades(
   syllabusId: string,
   userId: string,
   onData: (grades: Grade[]) => void,
   onError?: (e: unknown) => void
-) {
-  // TODO: Implement real-time listener for grades.
-  const noop = () => undefined;
-  void syllabusId;
-  void userId;
-  void onData;
-  void onError;
-  return noop;
+): () => void {
+  const q = query(
+    collection(db, "grades"),
+    where("syllabusId", "==", syllabusId),
+    where("userId", "==", userId)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const grades = snap.docs.map((d) => ({ gradeId: d.id, ...d.data() } as Grade));
+      onData(grades);
+    },
+    (err) => onError?.(err)
+  );
 }
 
-export function upsertGrade(gradeData: Partial<Grade> & { assignmentId: string; userId: string; syllabusId: string }) {
-  // TODO: Implement create/update grade document.
-  return Promise.resolve();
+export async function upsertGrade(
+  gradeData: Omit<Grade, "gradeId" | "loggedAt"> & { gradeId?: string }
+): Promise<void> {
+  const { gradeId, ...rest } = gradeData;
+  if (gradeId) {
+    await updateDoc(doc(db, "grades", gradeId), { ...rest, loggedAt: serverTimestamp() });
+  } else {
+    await addDoc(collection(db, "grades"), { ...rest, loggedAt: serverTimestamp() });
+  }
 }
-
-// NOTE: Imported-but-unused Firebase SDK symbols above are intentionally left
-// here as scaffolding hints for what will be implemented next.
-export const _firestoreScaffold = {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  onSnapshot,
-  orderBy,
-  query,
-  setDoc,
-  updateDoc
-};
 
