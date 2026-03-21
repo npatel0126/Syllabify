@@ -2,22 +2,22 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import useAuth from "@/hooks/useAuth";
+import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 
 export default function HomePage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading } = useFirebaseAuth();
 
   useEffect(() => {
     if (loading) return;
     if (user) router.replace("/dashboard");
     else router.replace("/login");
-  }, [loading, router, user]);
+  }, [loading, user, router]);
 
   return (
-    <div className="min-h-screen grid place-items-center">
-      <div className="w-10 h-10 border-2 border-primary-blue/40 border-t-primary-blue rounded-full animate-spin" />
-    </div>
+    <main className="min-h-screen flex items-center justify-center bg-[#0A0A0A]">
+      <div className="h-8 w-8 rounded-full border-2 border-[#4ADE80]/30 border-t-[#4ADE80] animate-spin" />
+    </main>
   );
 }
 

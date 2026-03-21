@@ -1,55 +1,43 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
-import type { User as AppUser } from "@/types";
 
-type FirebaseAuthContextValue = {
-  user: AppUser | null;
-  firebaseUser: FirebaseUser | null;
+interface FirebaseAuthContextValue {
+  user: FirebaseUser | null;
   loading: boolean;
-};
+}
 
-const FirebaseAuthContext = createContext<FirebaseAuthContextValue | undefined>(undefined);
+const FirebaseAuthContext = createContext<FirebaseAuthContextValue | null>(null);
 
-export default function FirebaseAuthProvider({
-  children
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+export function FirebaseAuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setFirebaseUser(u);
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
       setLoading(false);
     });
-    return () => unsub();
+
+    return () => unsubscribe();
   }, []);
 
-  const user = useMemo<AppUser | null>(() => {
-    // TODO: Hydrate app-level user profile from Firestore.
-    // For scaffolding, map Firebase user -> null.
-    return null;
-  }, [firebaseUser]);
-
-  const value = useMemo<FirebaseAuthContextValue>(
-    () => ({
-      user,
-      firebaseUser,
-      loading
-    }),
-    [user, firebaseUser, loading]
+  return (
+    <FirebaseAuthContext.Provider value={{ user, loading }}>
+      {children}
+    </FirebaseAuthContext.Provider>
   );
-
-  return <FirebaseAuthContext.Provider value={value}>{children}</FirebaseAuthContext.Provider>;
 }
 
-export function useFirebaseAuthContext() {
-  const ctx = useContext(FirebaseAuthContext);
-  if (!ctx) throw new Error("useFirebaseAuthContext must be used within FirebaseAuthProvider");
-  return ctx;
+export function useFirebaseAuth(): FirebaseAuthContextValue {
+  const context = useContext(FirebaseAuthContext);
+  if (context === null) {
+    throw new Error("useFirebaseAuth must be used within a FirebaseAuthProvider");
+  }
+  return context;
 }
 
+// Alias for backward compatibility
+export const useFirebaseAuthContext = useFirebaseAuth;

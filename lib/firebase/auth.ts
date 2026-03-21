@@ -1,20 +1,22 @@
-import { GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  type User as FirebaseUser,
+} from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
-import type { User } from "@/types";
 
-export async function signInWithGoogle(): Promise<void> {
-  // TODO: Implement popup sign-in and persist auth state.
+export async function signInWithGoogle(): Promise<FirebaseUser> {
   const provider = new GoogleAuthProvider();
-  await signInWithPopup(auth, provider);
+  const result = await signInWithPopup(auth, provider);
+  return result.user;
 }
 
 export async function signOut(): Promise<void> {
   await firebaseSignOut(auth);
 }
 
-export function getCurrentUser(): User | null {
-  // TODO: Map Firebase User -> our User type.
-  // For scaffolding, return null.
-  return null;
+export function getCurrentUser(): FirebaseUser | null {
+  return auth.currentUser;
 }
 
