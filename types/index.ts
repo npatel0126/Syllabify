@@ -1,3 +1,5 @@
+import type { Timestamp } from "firebase/firestore";
+
 export type ReminderStyle = "aggressive" | "moderate" | "light";
 export type SyllabusStatus = "uploading" | "processing" | "ready" | "error";
 export type AssignmentType = "exam" | "paper" | "quiz" | "lab" | "homework";
@@ -18,9 +20,9 @@ export interface User {
   email: string;
   phone: string;
   reminderStyle: ReminderStyle;
-  calendarToken: string; // encrypted Google OAuth refresh token (store encrypted)
+  calendarToken: string;
   timezone: string;
-  createdAt: Date | unknown;
+  createdAt: Timestamp;
 }
 
 export interface Syllabus {
@@ -32,8 +34,8 @@ export interface Syllabus {
   pdfUrl: string;
   pineconeNamespace: string;
   status: SyllabusStatus;
-  createdAt: Date | unknown;
-  updatedAt: Date | unknown;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export interface Assignment {
@@ -42,9 +44,9 @@ export interface Assignment {
   userId: string;
   title: string;
   type: AssignmentType;
-  dueDate: Date | unknown;
+  dueDate: Timestamp;
   dueDateConfirmed: boolean;
-  gradeWeight: number; // 0-100
+  gradeWeight: number;
   notes: string;
   calendarEventId: string;
   reminderTaskIds: string[];
@@ -59,7 +61,7 @@ export interface Grade {
   scoreMax: number;
   percentageScore: number;
   targetGrade: TargetGrade;
-  loggedAt: Date | unknown;
+  loggedAt: Timestamp;
 }
 
 export interface ChatMessage {
@@ -67,6 +69,6 @@ export interface ChatMessage {
   role: Role;
   content: string;
   citation?: string;
-  timestamp: Date | unknown;
+  timestamp: Timestamp;
 }
 
