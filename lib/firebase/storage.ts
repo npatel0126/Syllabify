@@ -6,13 +6,27 @@ export async function uploadPDF(
   userId: string,
   onProgress?: (progressPercent: number) => void
 ): Promise<{ downloadUrl: string; storagePath: string }> {
-  // TODO: Implement Storage upload + progress reporting.
-  // Return placeholders for scaffolding.
-  if (onProgress) onProgress(0);
   const storagePath = `users/${userId}/syllabi/${file.name}`;
-  if (onProgress) onProgress(100);
-  return { downloadUrl: "", storagePath };
-}
+  const storageRef = ref(storage, storagePath);
+  const uploadTask = uploadBytesResumable(storageRef, file, {
+    contentType: "application/pdf",
+  });
 
-export const _storageScaffold = { ref, uploadBytesResumable, getDownloadURL };
+  return new Promise((resolve, reject) => {
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        const percent = Math.round(
+          (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+        );
+        onProgress?.(percent);
+      },
+      (error) => reject(error),
+      async () => {
+        const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+        resolve({ downloadUrl, storagePath });
+      }
+    );
+  });
+}
 
