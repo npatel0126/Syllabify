@@ -28,8 +28,10 @@ export default function CourseTabs({
               key={t.key}
               href={t.href}
               className={[
-                "py-3 text-sm font-semibold transition",
-                isActive ? "text-primary-blue" : "text-neutral-400 hover:text-neutral-200"
+                "py-3 text-sm font-semibold transition border-b-2 -mb-px",
+                isActive
+                  ? "text-primary-blue border-primary-blue"
+                  : "text-neutral-400 hover:text-neutral-200 border-transparent",
               ].join(" ")}
             >
               {t.label}
@@ -37,7 +39,6 @@ export default function CourseTabs({
           );
         })}
       </div>
-      {/* TODO: underline indicator */}
     </nav>
   );
 }

@@ -1,36 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSyllabus } from "@/lib/firebase/firestore";
-
-const MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+import { adminDb } from "@/lib/firebase/admin";
+import { FieldValue } from "firebase-admin/firestore";
 
 // POST /api/upload-syllabus
+// Body (JSON): { userId: string, courseName?: string }
+// Returns:     { syllabusId: string }
+//
+// The client uploads the PDF directly to Firebase Storage using the returned
+// syllabusId as the filename, then calls updateSyllabus() with the download URL.
+// This keeps large binary data out of the Next.js API layer entirely.
 export async function POST(req: NextRequest) {
   try {
-    const form = await req.formData();
+    const body = await req.json();
+    const { userId, courseName = "Untitled Course" } = body as {
+      userId?: string;
+      courseName?: string;
+    };
 
-    const file = form.get("file");
-    const userId = form.get("userId");
-    const courseName = (form.get("courseName") as string | null) ?? "Untitled Course";
-
-    // ── Validate inputs ──────────────────────────────────────────────────────
     if (!userId || typeof userId !== "string") {
       return NextResponse.json({ error: "userId is required" }, { status: 400 });
     }
 
-    if (!file || !(file instanceof File)) {
-      return NextResponse.json({ error: "A PDF file is required" }, { status: 400 });
-    }
-
-    if (file.type !== "application/pdf") {
-      return NextResponse.json({ error: "Only PDF files are accepted" }, { status: 415 });
-    }
-
-    if (file.size > MAX_SIZE_BYTES) {
-      return NextResponse.json({ error: "File exceeds the 20 MB limit" }, { status: 413 });
-    }
-
-    // ── Create Firestore record ───────────────────────────────────────────────
-    const syllabusId = await createSyllabus({
+    // ── Create Firestore record via Admin SDK (bypasses security rules) ──────
+    const now = FieldValue.serverTimestamp();
+    const docRef = await adminDb.collection("syllabi").add({
       userId,
       courseName,
       professor: "",
@@ -38,7 +31,10 @@ export async function POST(req: NextRequest) {
       pdfUrl: "",
       pineconeNamespace: `ns_${userId}_${Date.now()}`,
       status: "uploading",
+      createdAt: now,
+      updatedAt: now,
     });
+    const syllabusId = docRef.id;
 
     return NextResponse.json({ syllabusId }, { status: 201 });
   } catch (err) {

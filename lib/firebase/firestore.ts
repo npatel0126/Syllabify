@@ -5,7 +5,6 @@ import {
   getDoc,
   updateDoc,
   onSnapshot,
-  orderBy,
   query,
   where,
   serverTimestamp,
@@ -77,15 +76,23 @@ export function getAssignments(
   onData: (assignments: Assignment[]) => void,
   onError?: (e: unknown) => void
 ): () => void {
+  // Note: no orderBy here — avoids requiring a composite index in the emulator.
+  // We sort client-side instead.
   const q = query(
     collection(db, "assignments"),
-    where("syllabusId", "==", syllabusId),
-    orderBy("dueDate", "asc")
+    where("syllabusId", "==", syllabusId)
   );
   return onSnapshot(
     q,
     (snap) => {
-      const assignments = snap.docs.map((d) => ({ assignmentId: d.id, ...d.data() } as Assignment));
+      const assignments = snap.docs
+        .map((d) => ({ assignmentId: d.id, ...d.data() } as Assignment))
+        .sort((a, b) => {
+          // Sort by dueDate ascending; nulls last
+          const aDate = (a.dueDate as unknown as { toDate?: () => Date } | null)?.toDate?.()?.getTime() ?? Infinity;
+          const bDate = (b.dueDate as unknown as { toDate?: () => Date } | null)?.toDate?.()?.getTime() ?? Infinity;
+          return aDate - bDate;
+        });
       onData(assignments);
     },
     (err) => onError?.(err)

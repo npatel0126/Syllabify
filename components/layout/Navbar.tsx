@@ -24,6 +24,12 @@ export default function Navbar({
             <div className="text-sm font-semibold text-neutral-100">{userName ?? "Student"}</div>
             <div className="text-xs text-neutral-400">{userEmail ?? ""}</div>
           </div>
+          <Link
+            href="/settings"
+            className="rounded-md border border-neutral-700 bg-neutral-800/40 px-3 py-1.5 text-xs font-semibold text-neutral-300 hover:text-neutral-100 hover:border-neutral-600 transition"
+          >
+            Settings
+          </Link>
           <Button variant="secondary" size="sm" onClick={onSignOut}>
             Sign out
           </Button>

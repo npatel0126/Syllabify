@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { uploadPDF } from "@/lib/firebase/storage";
+import { updateSyllabus } from "@/lib/firebase/firestore";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 
 const MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
@@ -9,11 +10,11 @@ const MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
 type UploadState = "idle" | "dragover" | "uploading" | "success" | "error";
 
 interface UploadZoneProps {
-  syllabusId: string;
-  onUploadComplete: (downloadUrl: string, syllabusId: string) => void;
+  /** Called after the PDF is stored and the Firestore doc is marked "processing". */
+  onUploadComplete?: (downloadUrl: string, syllabusId: string) => void;
 }
 
-export default function UploadZone({ syllabusId, onUploadComplete }: UploadZoneProps) {
+export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
   const { user } = useFirebaseAuth();
   const inputRef = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<UploadState>("idle");
@@ -46,18 +47,37 @@ export default function UploadZone({ syllabusId, onUploadComplete }: UploadZoneP
       setErrorMsg(null);
 
       try {
-        const { downloadUrl } = await uploadPDF(file, user.uid, (pct) => {
+        // ── Step 1: create Firestore doc, get real syllabusId ────────────────
+        const res = await fetch("/api/upload-syllabus", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.uid, courseName: file.name.replace(/\.pdf$/i, "") }),
+        });
+
+        if (!res.ok) {
+          const { error } = await res.json().catch(() => ({}));
+          throw new Error(error ?? `API error ${res.status}`);
+        }
+
+        const { syllabusId } = (await res.json()) as { syllabusId: string };
+
+        // ── Step 2: upload PDF to Storage using syllabusId as filename ────────
+        const { downloadUrl } = await uploadPDF(file, user.uid, syllabusId, (pct) => {
           setProgress(pct);
         });
+
+        // ── Step 3: update Firestore doc with the download URL ────────────────
+        await updateSyllabus(syllabusId, { pdfUrl: downloadUrl, status: "processing" });
+
         setState("success");
-        onUploadComplete(downloadUrl, syllabusId);
+        onUploadComplete?.(downloadUrl, syllabusId);
       } catch (err) {
-        console.error(err);
-        setErrorMsg("Upload failed. Please try again.");
+        console.error("[UploadZone]", err);
+        setErrorMsg(err instanceof Error ? err.message : "Upload failed. Please try again.");
         setState("error");
       }
     },
-    [user, syllabusId, onUploadComplete]
+    [user, onUploadComplete]
   );
 
   // ── Drag events ─────────────────────────────────────────────────────────────
@@ -80,7 +100,6 @@ export default function UploadZone({ syllabusId, onUploadComplete }: UploadZoneP
   function onInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (file) handleFile(file);
-    // reset input so same file can be re-selected after an error
     e.target.value = "";
   }
 
@@ -136,7 +155,7 @@ export default function UploadZone({ syllabusId, onUploadComplete }: UploadZoneP
         onChange={onInputChange}
       />
 
-      {/* ── Idle ────────────────────────────────────────────────────────────── */}
+      {/* ── Idle / Dragover ──────────────────────────────────────────────────── */}
       {(state === "idle" || state === "dragover") && (
         <>
           <svg

@@ -8,8 +8,6 @@ Fallback path : pdf2image + pytesseract  (scanned / image-only PDFs)
 
 import re
 import pdfplumber
-import pytesseract
-from pdf2image import convert_from_path
 
 
 # Minimum character count to consider pdfplumber output usable.
@@ -48,6 +46,12 @@ def _extract_with_pdfplumber(pdf_path: str) -> str:
 
 def _extract_with_ocr(pdf_path: str) -> str:
     """Convert each PDF page to an image and run Tesseract OCR on it."""
+    # Lazy imports — pdf2image/pytesseract use subprocess which triggers
+    # fork() on macOS. Importing them only when needed avoids the ObjC
+    # fork-safety crash in the gunicorn worker.
+    import pytesseract
+    from pdf2image import convert_from_path
+
     images = convert_from_path(pdf_path)
     pages: list[str] = []
     for image in images:

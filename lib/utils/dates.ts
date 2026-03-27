@@ -1,26 +1,49 @@
 // Date utilities for UI formatting and reminder logic.
+import type { Timestamp } from "firebase/firestore";
 
-export function formatDueDate(timestamp: Date | unknown): string {
-  // TODO: Implement robust formatting.
-  void timestamp;
-  return "Nov 14, 2025";
+/** Convert a Firestore Timestamp, JS Date, or ISO string to a JS Date. */
+function toDate(value: Timestamp | Date | string | unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  // Firestore Timestamp has a .toDate() method
+  if (typeof (value as Timestamp).toDate === "function") {
+    return (value as Timestamp).toDate();
+  }
+  if (typeof value === "string" || typeof value === "number") {
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  return null;
 }
 
-export function formatRelativeDate(timestamp: Date | unknown): string {
-  // TODO: Implement relative date formatting.
-  void timestamp;
-  return "in 3 days";
+export function formatDueDate(timestamp: Timestamp | Date | unknown): string {
+  const d = toDate(timestamp);
+  if (!d) return "No due date";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
-export function isOverdue(timestamp: Date | unknown): boolean {
-  // TODO: Compare due date to now.
-  void timestamp;
-  return false;
+export function formatRelativeDate(timestamp: Timestamp | Date | unknown): string {
+  const d = toDate(timestamp);
+  if (!d) return "";
+  const days = getDaysUntil(timestamp);
+  if (days < 0) return `${Math.abs(days)} day${Math.abs(days) !== 1 ? "s" : ""} ago`;
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  return `in ${days} days`;
 }
 
-export function getDaysUntil(timestamp: Date | unknown): number {
-  // TODO: Compute days until due date.
-  void timestamp;
-  return 0;
+export function isOverdue(timestamp: Timestamp | Date | unknown): boolean {
+  const d = toDate(timestamp);
+  if (!d) return false;
+  return d < new Date();
+}
+
+export function getDaysUntil(timestamp: Timestamp | Date | unknown): number {
+  const d = toDate(timestamp);
+  if (!d) return 0;
+  const now = new Date();
+  const nowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const thenMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  return Math.round((thenMidnight.getTime() - nowMidnight.getTime()) / 86_400_000);
 }
 

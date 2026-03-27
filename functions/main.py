@@ -14,6 +14,15 @@ import logging
 import os
 import tempfile
 
+# Must be set before any imports that use subprocess/fork (pdfplumber, pytesseract).
+# This prevents the macOS ObjC runtime from killing forked worker processes.
+os.environ.setdefault("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES")
+
+# ── Local dev: inject secrets that firebase.json environmentVariables doesn't
+# forward to the Python subprocess when running via the emulator.
+# These are safe to hardcode here because this file is local-dev only.
+os.environ.setdefault("GEMINI_API_KEY", "REDACTED")
+
 import firebase_admin
 from firebase_admin import firestore, storage as admin_storage
 from firebase_functions import storage_fn
@@ -21,17 +30,26 @@ from google.cloud.firestore_v1 import SERVER_TIMESTAMP
 
 from pdf_processor import extract_text
 from ai_extractor import extract_assignments, extract_grade_breakdown
+from embedder import embed_syllabus
 
 # ── Firebase Admin init ───────────────────────────────────────────────────────
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+# Initialise once at module load so the Functions framework can introspect
+# triggers without timing out.  All network calls happen inside the handler.
+if not firebase_admin._apps:
+    firebase_admin.initialize_app()
+
+_db = None
+
 
 def _get_db():
-    """Lazily initialise Firebase Admin and return a Firestore client."""
-    if not firebase_admin._apps:
-        firebase_admin.initialize_app()
-    return firestore.client()
+    """Return a cached Firestore client."""
+    global _db
+    if _db is None:
+        _db = firestore.client()
+    return _db
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -69,19 +87,19 @@ def _find_syllabus_id(user_id: str, filename: str) -> str | None:
     return None
 
 
-_BUCKET = os.environ.get(
-    "FIREBASE_STORAGE_BUCKET", "syllabify-9b9d4.firebasestorage.app"
-)
-
 # ── Cloud Function ────────────────────────────────────────────────────────────
 
-@storage_fn.on_object_finalized(bucket=_BUCKET)
+# No bucket= restriction — lets the emulator match regardless of bucket name.
+@storage_fn.on_object_finalized()
 def on_syllabus_uploaded(event: storage_fn.CloudEvent) -> None:  # type: ignore[type-arg]
     """
     Fires when any object is finalised in the default Storage bucket.
     We only process files at  users/{userId}/syllabi/{filename}.
     """
-    object_name: str = event.data.get("name", "")
+    object_name: str = event.data.name or ""
+
+    # Log the full path immediately so we can confirm the trigger fired.
+    logger.info("Storage trigger fired — full path: %s", object_name)
 
     # ── Gate: only process syllabus uploads ──────────────────────────────────
     parts = object_name.split("/")
@@ -102,6 +120,7 @@ def on_syllabus_uploaded(event: storage_fn.CloudEvent) -> None:  # type: ignore[
     syllabus_ref = _syllabus_ref(syllabus_id)
     syllabus_ref.update({"status": "processing", "updatedAt": SERVER_TIMESTAMP})
 
+    tmp_path: str | None = None
     try:
         # ── 1. Download PDF to a temp file ────────────────────────────────────
         logger.info("[%s] Downloading PDF from Storage…", syllabus_id)
@@ -151,26 +170,37 @@ def on_syllabus_uploaded(event: storage_fn.CloudEvent) -> None:  # type: ignore[
         batch.commit()
         logger.info("[%s] Wrote %d assignment docs to Firestore", syllabus_id, len(assignments))
 
-        # ── 5. Fetch course name for context (best-effort) ────────────────────
+        # ── 5. Embed for RAG (Pinecone) ───────────────────────────────────────
+        logger.info("[%s] Embedding syllabus for RAG…", syllabus_id)
+        pinecone_namespace = embed_syllabus(syllabus_id, text)
+
+        # ── 6. Fetch course name for context (best-effort) ────────────────────
         syllabus_snap = syllabus_ref.get()
         course_name = (syllabus_snap.to_dict() or {}).get("courseName", "")
 
-        # ── 6. Mark syllabus ready ────────────────────────────────────────────
+        # ── 7. Mark syllabus ready ────────────────────────────────────────────
         syllabus_ref.update({
-            "status":         "ready",
-            "courseName":     course_name,
-            "gradeBreakdown": grade_breakdown,
-            "updatedAt":      SERVER_TIMESTAMP,
+            "status":             "ready",
+            "courseName":         course_name,
+            "gradeBreakdown":     grade_breakdown,
+            "pineconeNamespace":  pinecone_namespace,
+            "updatedAt":          SERVER_TIMESTAMP,
         })
         logger.info("[%s] Syllabus marked ready ✓", syllabus_id)
 
     except Exception as exc:  # noqa: BLE001
-        logger.exception("[%s] Processing failed: %s", syllabus_id, exc)
-        syllabus_ref.update({"status": "error", "updatedAt": SERVER_TIMESTAMP})
+        error_msg = str(exc)
+        logger.exception("[%s] Processing failed: %s", syllabus_id, error_msg)
+        syllabus_ref.update({
+            "status": "error",
+            "errorMessage": error_msg,
+            "updatedAt": SERVER_TIMESTAMP,
+        })
 
     finally:
         # Clean up the temp file
-        try:
-            os.unlink(tmp_path)
-        except Exception:  # noqa: BLE001
-            pass
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except Exception:  # noqa: BLE001
+                pass

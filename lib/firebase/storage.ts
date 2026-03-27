@@ -4,9 +4,12 @@ import { storage } from "@/lib/firebase/config";
 export async function uploadPDF(
   file: File,
   userId: string,
+  syllabusId: string,
   onProgress?: (progressPercent: number) => void
 ): Promise<{ downloadUrl: string; storagePath: string }> {
-  const storagePath = `users/${userId}/syllabi/${file.name}`;
+  // Use syllabusId as the filename so the Cloud Function trigger can match
+  // the Firestore doc without a lookup, and to avoid name collisions.
+  const storagePath = `users/${userId}/syllabi/${syllabusId}.pdf`;
   const storageRef = ref(storage, storagePath);
   const uploadTask = uploadBytesResumable(storageRef, file, {
     contentType: "application/pdf",

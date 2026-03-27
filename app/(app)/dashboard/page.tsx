@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import useSyllabi from "@/hooks/useSyllabi";
 import UploadZone from "@/components/syllabus/UploadZone";
 import SyllabusCourseCard from "@/components/syllabus/SyllabusCourseCard";
-import { updateSyllabus } from "@/lib/firebase/firestore";
 
 // Derive first name from Firebase displayName or email
 function getFirstName(displayName: string | null, email: string | null): string {
@@ -31,21 +30,16 @@ export default function DashboardPage() {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
-  // After client-side upload completes, update Firestore with the download URL
+  // UploadZone already updates Firestore internally; this callback is a hook
+  // for any post-upload UI side-effects (e.g. showing a toast in the future).
   const handleUploadComplete = useCallback(
-    async (downloadUrl: string, syllabusId: string) => {
-      await updateSyllabus(syllabusId, { pdfUrl: downloadUrl, status: "processing" });
+    (_downloadUrl: string, _syllabusId: string) => {
+      // no-op: UploadZone handles the Firestore write itself
     },
     []
   );
 
   const isProcessing = syllabi.some((s) => s.status === "processing");
-
-  // ── Placeholder syllabusId — real flow: POST /api/upload-syllabus first ────
-  // In the full flow the UploadZone would receive a syllabusId created by
-  // the API route. For the dashboard we create it inline via a temp value;
-  // the UploadZone only uses it to call onUploadComplete.
-  const pendingSyllabusId = user ? `pending_${user.uid}` : "pending";
 
   if (loading) {
     return (
@@ -81,10 +75,7 @@ export default function DashboardPage() {
 
         {/* ── Upload zone ───────────────────────────────────────────────── */}
         <div className="mt-6">
-          <UploadZone
-            syllabusId={pendingSyllabusId}
-            onUploadComplete={handleUploadComplete}
-          />
+          <UploadZone onUploadComplete={handleUploadComplete} />
         </div>
 
         {/* ── Course grid ───────────────────────────────────────────────── */}
