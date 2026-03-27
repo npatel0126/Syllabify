@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
+import { signOut } from "@/lib/firebase/auth";
 import useSyllabi from "@/hooks/useSyllabi";
 import UploadZone from "@/components/syllabus/UploadZone";
-import SyllabusCourseCard from "@/components/syllabus/SyllabusCourseCard";
+import type { Syllabus } from "@/types";
 
-// Derive first name from Firebase displayName or email
 function getFirstName(displayName: string | null, email: string | null): string {
   if (displayName) return displayName.split(" ")[0];
   if (email) return email.split("@")[0];
@@ -15,88 +16,394 @@ function getFirstName(displayName: string | null, email: string | null): string 
 }
 
 function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
   return "Good evening";
 }
 
+function getDateString(): string {
+  return new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function getInitials(name: string | null, email: string | null): string {
+  if (name) {
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return parts[0][0].toUpperCase();
+  }
+  if (email) return email[0].toUpperCase();
+  return "?";
+}
+
+// ── CourseCard ────────────────────────────────────────────────────────────────
+function CourseCard({ syllabus }: { syllabus: Syllabus }) {
+  const isReady = syllabus.status === "ready";
+  const isProcessing = syllabus.status === "processing";
+  const isError = syllabus.status === "error";
+
+  return (
+    <div className="rounded-2xl border border-[#1F1F1F] bg-[#111111] p-5 flex flex-col gap-4 hover:border-[#2A2A2A] transition-all duration-200">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h3 className="text-base font-semibold text-white truncate leading-snug">
+            {syllabus.courseName}
+          </h3>
+          {(syllabus.professor || syllabus.semester) && (
+            <p className="mt-0.5 text-xs text-[#6B7280] truncate">
+              {[syllabus.professor, syllabus.semester].filter(Boolean).join(" · ")}
+            </p>
+          )}
+        </div>
+        {isProcessing && (
+          <span className="shrink-0 flex items-center gap-1.5 rounded-full border border-[#7DD3FC]/30 bg-[#0c1a2e] px-2.5 py-1 text-xs text-[#7DD3FC]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#7DD3FC] animate-pulse" />
+            Processing
+          </span>
+        )}
+        {isReady && (
+          <span className="shrink-0 flex items-center gap-1.5 rounded-full border border-[#4ADE80]/30 bg-[#052e16] px-2.5 py-1 text-xs text-[#4ADE80]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#4ADE80]" />
+            Ready
+          </span>
+        )}
+        {isError && (
+          <span className="shrink-0 flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-950/40 px-2.5 py-1 text-xs text-red-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+            Error
+          </span>
+        )}
+      </div>
+
+      {isReady ? (
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/course/${syllabus.syllabusId}`}
+            className="rounded-lg border border-[#1F1F1F] bg-[#0A0A0A] px-3 py-1.5 text-xs text-[#9CA3AF] hover:border-[#4ADE80]/40 hover:text-[#4ADE80] transition-all duration-150"
+          >
+            Overview
+          </Link>
+          <Link
+            href={`/course/${syllabus.syllabusId}/chat`}
+            className="rounded-lg border border-[#1F1F1F] bg-[#0A0A0A] px-3 py-1.5 text-xs text-[#9CA3AF] hover:border-[#7DD3FC]/40 hover:text-[#7DD3FC] transition-all duration-150"
+          >
+            Chat with SyllAI
+          </Link>
+          <Link
+            href={`/course/${syllabus.syllabusId}/grades`}
+            className="rounded-lg border border-[#1F1F1F] bg-[#0A0A0A] px-3 py-1.5 text-xs text-[#9CA3AF] hover:border-[#A78BFA]/40 hover:text-[#A78BFA] transition-all duration-150"
+          >
+            Grades
+          </Link>
+        </div>
+      ) : isProcessing ? (
+        <p className="text-xs text-[#6B7280]">AI is extracting your assignments — usually under a minute…</p>
+      ) : isError ? (
+        <p className="text-xs text-red-400/80">Something went wrong during processing. Try re-uploading.</p>
+      ) : null}
+    </div>
+  );
+}
+
+// ── Upload Modal ──────────────────────────────────────────────────────────────
+function UploadModal({
+  open,
+  onClose,
+  onUploadComplete,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onUploadComplete: (url: string, id: string) => void;
+}) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    if (open) window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full max-w-lg rounded-2xl border border-[#1F1F1F] bg-[#111111] p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-base font-semibold text-white">Upload Syllabus</h2>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-[#6B7280] hover:bg-[#1F1F1F] hover:text-white transition"
+            aria-label="Close"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <UploadZone
+          onUploadComplete={(url, id) => {
+            onUploadComplete(url, id);
+            onClose();
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading } = useFirebaseAuth();
   const { syllabi } = useSyllabi(user?.uid);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [activeNav, setActiveNav] = useState<"overview" | "upload" | "settings">("overview");
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
-  // UploadZone already updates Firestore internally; this callback is a hook
-  // for any post-upload UI side-effects (e.g. showing a toast in the future).
-  const handleUploadComplete = useCallback(
-    (_downloadUrl: string, _syllabusId: string) => {
-      // no-op: UploadZone handles the Firestore write itself
-    },
-    []
-  );
+  const handleUploadComplete = useCallback((_url: string, _id: string) => {
+    setActiveNav("overview");
+  }, []);
 
-  const isProcessing = syllabi.some((s) => s.status === "processing");
+  const openUpload = useCallback(() => {
+    setUploadOpen(true);
+    setActiveNav("upload");
+  }, []);
+
+  const closeUpload = useCallback(() => {
+    setUploadOpen(false);
+    setActiveNav("overview");
+  }, []);
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-[#0A0A0A]">
+      <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A]">
         <div className="h-8 w-8 rounded-full border-2 border-[#4ADE80]/30 border-t-[#4ADE80] animate-spin" />
-      </main>
+      </div>
     );
   }
 
   if (!user) return null;
 
   const firstName = getFirstName(user.displayName, user.email);
+  const initials = getInitials(user.displayName, user.email);
+  const totalCourses = syllabi.length;
+  const readyCount = syllabi.filter((s) => s.status === "ready").length;
+  const processingCount = syllabi.filter((s) => s.status === "processing").length;
 
   return (
-    <main className="min-h-screen bg-[#0A0A0A] px-4 py-10">
-      <div className="mx-auto max-w-3xl">
+    <>
+      <UploadModal open={uploadOpen} onClose={closeUpload} onUploadComplete={handleUploadComplete} />
 
-        {/* ── Processing banner ─────────────────────────────────────────── */}
-        {isProcessing && (
-          <div className="mb-6 flex items-center gap-2 rounded-xl border border-[#4ADE80]/30 bg-[#052e16] px-4 py-3">
-            <span className="h-2 w-2 rounded-full bg-[#4ADE80] animate-pulse" />
-            <p className="text-sm text-[#4ADE80]">
-              Processing your syllabus — this usually takes under a minute…
-            </p>
+      <div className="flex min-h-screen bg-[#0A0A0A]">
+        {/* ── Sidebar ──────────────────────────────────────────────────────── */}
+        <aside className="hidden md:flex w-60 shrink-0 flex-col border-r border-[#1F1F1F]">
+          {/* logo */}
+          <div className="flex h-16 items-center px-5 border-b border-[#1F1F1F]">
+            <span className="text-lg font-bold tracking-tight">
+              <span className="text-[#4ADE80]">Syllab</span>
+              <span className="text-white">ify</span>
+            </span>
           </div>
-        )}
 
-        {/* ── Greeting ──────────────────────────────────────────────────── */}
-        <h1 className="text-2xl font-bold text-white">
-          {getGreeting()}, {firstName}
-        </h1>
-        <p className="mt-1 text-sm text-[#9CA3AF]">Your courses</p>
-
-        {/* ── Upload zone ───────────────────────────────────────────────── */}
-        <div className="mt-6">
-          <UploadZone onUploadComplete={handleUploadComplete} />
-        </div>
-
-        {/* ── Course grid ───────────────────────────────────────────────── */}
-        {syllabi.length > 0 ? (
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {syllabi.map((syllabus) => (
-              <SyllabusCourseCard key={syllabus.syllabusId} syllabus={syllabus} />
-            ))}
-          </div>
-        ) : (
-          <div className="mt-10 flex flex-col items-center gap-3 text-center">
-            <div className="h-16 w-16 rounded-full border border-[#1F1F1F] bg-[#111111] flex items-center justify-center">
-              <svg className="h-7 w-7 text-[#4B5563]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+          {/* nav */}
+          <nav className="flex-1 flex flex-col gap-1 px-3 py-4">
+            <button
+              onClick={() => { setActiveNav("overview"); setUploadOpen(false); }}
+              className={[
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left w-full",
+                activeNav === "overview"
+                  ? "bg-[#111111] text-white"
+                  : "text-[#6B7280] hover:bg-[#111111] hover:text-[#D1D5DB]",
+              ].join(" ")}
+            >
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
               </svg>
-            </div>
-            <p className="text-sm text-[#9CA3AF]">Upload your first syllabus to get started</p>
-          </div>
-        )}
+              Overview
+            </button>
 
+            <button
+              onClick={openUpload}
+              className={[
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left w-full",
+                activeNav === "upload"
+                  ? "bg-[#111111] text-white"
+                  : "text-[#6B7280] hover:bg-[#111111] hover:text-[#D1D5DB]",
+              ].join(" ")}
+            >
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+              </svg>
+              Upload Syllabus
+            </button>
+
+            <Link
+              href="/settings"
+              onClick={() => setActiveNav("settings")}
+              className={[
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all",
+                activeNav === "settings"
+                  ? "bg-[#111111] text-white"
+                  : "text-[#6B7280] hover:bg-[#111111] hover:text-[#D1D5DB]",
+              ].join(" ")}
+            >
+              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+              </svg>
+              Settings
+            </Link>
+          </nav>
+
+          {/* user footer */}
+          <div className="border-t border-[#1F1F1F] p-4">
+            <div className="flex items-center gap-3">
+              {user.photoURL ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={user.photoURL}
+                  alt="Avatar"
+                  className="h-8 w-8 rounded-full object-cover ring-1 ring-[#1F1F1F]"
+                />
+              ) : (
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#4ADE80]/20 text-xs font-semibold text-[#4ADE80]">
+                  {initials}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-white truncate">
+                  {user.displayName ?? user.email}
+                </p>
+                {user.displayName && (
+                  <p className="text-[10px] text-[#6B7280] truncate">{user.email}</p>
+                )}
+              </div>
+              <button
+                onClick={() => void signOut().then(() => router.replace("/login"))}
+                title="Sign out"
+                className="rounded-lg p-1.5 text-[#6B7280] hover:bg-[#1F1F1F] hover:text-white transition"
+              >
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15M12 9l-3 3m0 0 3 3m-3-3h12.75" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* ── Main content ─────────────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* top header */}
+          <header className="flex h-16 items-center justify-between gap-4 border-b border-[#1F1F1F] px-6">
+            {/* mobile logo */}
+            <span className="md:hidden text-base font-bold">
+              <span className="text-[#4ADE80]">Syllab</span>
+              <span className="text-white">ify</span>
+            </span>
+
+            <div className="hidden md:block">
+              <p className="text-sm font-medium text-white">
+                {getGreeting()}, {firstName} 👋
+              </p>
+              <p className="text-xs text-[#6B7280]">{getDateString()}</p>
+            </div>
+
+            <button
+              onClick={openUpload}
+              className="ml-auto flex items-center gap-2 rounded-xl bg-[#4ADE80] px-4 py-2 text-sm font-semibold text-black hover:bg-[#22c55e] transition-colors"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              New Syllabus
+            </button>
+          </header>
+
+          {/* body */}
+          <main className="flex-1 overflow-y-auto px-6 py-8">
+            {/* mobile greeting */}
+            <div className="md:hidden mb-6">
+              <p className="text-base font-semibold text-white">
+                {getGreeting()}, {firstName} 👋
+              </p>
+              <p className="text-xs text-[#6B7280] mt-0.5">{getDateString()}</p>
+            </div>
+
+            {/* stats row */}
+            {totalCourses > 0 && (
+              <div className="grid grid-cols-3 gap-4 mb-8">
+                {[
+                  { label: "Total Courses", value: totalCourses, color: "text-white" },
+                  { label: "Ready", value: readyCount, color: "text-[#4ADE80]" },
+                  { label: "Processing", value: processingCount, color: "text-[#7DD3FC]" },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="rounded-xl border border-[#1F1F1F] bg-[#111111] px-4 py-4">
+                    <p className={`text-2xl font-bold ${color}`}>{value}</p>
+                    <p className="mt-1 text-xs text-[#6B7280]">{label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* processing banner */}
+            {processingCount > 0 && (
+              <div className="mb-6 flex items-center gap-2 rounded-xl border border-[#7DD3FC]/20 bg-[#0c1a2e] px-4 py-3">
+                <span className="h-2 w-2 rounded-full bg-[#7DD3FC] animate-pulse shrink-0" />
+                <p className="text-sm text-[#7DD3FC]">
+                  {processingCount === 1
+                    ? "1 syllabus is being processed by AI — usually under a minute."
+                    : `${processingCount} syllabi are being processed — usually under a minute.`}
+                </p>
+              </div>
+            )}
+
+            {/* course grid or empty state */}
+            {syllabi.length > 0 ? (
+              <>
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-[#4B5563] mb-4">
+                  Your Courses
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {syllabi.map((s) => (
+                    <CourseCard key={s.syllabusId} syllabus={s} />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
+                <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-[#1F1F1F] bg-[#111111]">
+                  <svg className="h-9 w-9 text-[#4B5563]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-white">No courses yet</p>
+                  <p className="mt-1 text-sm text-[#6B7280]">Upload your first syllabus to get started</p>
+                </div>
+                <button
+                  onClick={openUpload}
+                  className="flex items-center gap-2 rounded-xl bg-[#4ADE80] px-5 py-2.5 text-sm font-semibold text-black hover:bg-[#22c55e] transition-colors"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                  Upload Syllabus
+                </button>
+              </div>
+            )}
+          </main>
+        </div>
       </div>
-    </main>
+    </>
   );
 }
