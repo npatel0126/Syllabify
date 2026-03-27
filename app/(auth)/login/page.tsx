@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { signInWithGoogle } from "@/lib/firebase/auth";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 
@@ -41,6 +42,17 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-[#0A0A0A] px-4">
+      {/* Back to home */}
+      <Link
+        href="/"
+        className="fixed top-5 left-5 flex items-center gap-1.5 text-xs font-medium text-[#9CA3AF] transition hover:text-[#F9FAFB]"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+          <path fillRule="evenodd" d="M17 10a.75.75 0 01-.75.75H5.612l4.158 3.96a.75.75 0 11-1.04 1.08l-5.5-5.25a.75.75 0 010-1.08l5.5-5.25a.75.75 0 111.04 1.08L5.612 9.25H16.25A.75.75 0 0117 10z" clipRule="evenodd" />
+        </svg>
+        Back
+      </Link>
+
       <div className="w-full max-w-sm rounded-xl border border-[#1F1F1F] bg-[#111111] p-8 shadow-2xl">
         {/* Wordmark */}
         <h1 className="text-3xl font-extrabold text-[#4ADE80] tracking-tight">
