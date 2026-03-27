@@ -19,7 +19,9 @@ from pinecone import Pinecone, ServerlessSpec
 logger = logging.getLogger(__name__)
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-_EMBED_MODEL = "text-embedding-004"
+# text-embedding-004 is only available on the v1 (GA) API, not v1beta.
+# gemini-embedding-exp-03-07 works on v1beta and has the same 768-dim output.
+_EMBED_MODEL = "gemini-embedding-exp-03-07"
 _EMBED_DIMS = 768          # text-embedding-004 output dimension
 _INDEX_NAME = os.environ.get("PINECONE_INDEX", "syllabify")
 _CHUNK_SIZE = 800

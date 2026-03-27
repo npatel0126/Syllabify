@@ -176,9 +176,16 @@ def on_syllabus_uploaded(event: storage_fn.CloudEvent) -> None:  # type: ignore[
         batch.commit()
         logger.info("[%s] Wrote %d assignment docs to Firestore", syllabus_id, len(assignments))
 
-        # ── 5. Embed for RAG (Pinecone) ───────────────────────────────────────
+        # ── 5. Embed for RAG (Pinecone) — non-fatal ──────────────────────────
         logger.info("[%s] Embedding syllabus for RAG…", syllabus_id)
-        pinecone_namespace = embed_syllabus(syllabus_id, text)
+        pinecone_namespace = None
+        try:
+            pinecone_namespace = embed_syllabus(syllabus_id, text)
+        except Exception as embed_exc:  # noqa: BLE001
+            logger.warning(
+                "[%s] RAG embedding failed (skipping, syllabus still marked ready): %s",
+                syllabus_id, embed_exc,
+            )
 
         # ── 6. Fetch course name for context (best-effort) ────────────────────
         syllabus_snap = syllabus_ref.get()
