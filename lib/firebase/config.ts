@@ -32,7 +32,8 @@ if (
   !globalThis.__firebaseEmulatorsConnected
 ) {
   globalThis.__firebaseEmulatorsConnected = true;
-  connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
+  // Auth is NOT emulated — uses real Google OAuth so sign-in works properly.
+  // connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "localhost", 8080);
   connectStorageEmulator(storage, "localhost", 9199);
 }
