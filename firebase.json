@@ -22,7 +22,7 @@
       "STORAGE_EMULATOR_HOST": "http://127.0.0.1:9199",
       "GCLOUD_PROJECT": "syllabify-9b9d4",
       "GOOGLE_CLOUD_PROJECT": "syllabify-9b9d4",
-      "GEMINI_API_KEY": "REDACTED",
+      "GEMINI_API_KEY": "REPLACE_WITH_YOUR_GEMINI_API_KEY",
       "OBJC_DISABLE_INITIALIZE_FORK_SAFETY": "YES"
     }
   },

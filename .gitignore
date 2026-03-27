@@ -1,5 +1,9 @@
 .env.local
 .env
+functions/.env.local
+functions/.env
+tsconfig.tsbuildinfo
+firestore-debug.log
 node_modules
 .next
 firebase-debug.log

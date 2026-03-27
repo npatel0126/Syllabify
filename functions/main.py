@@ -18,10 +18,16 @@ import tempfile
 # This prevents the macOS ObjC runtime from killing forked worker processes.
 os.environ.setdefault("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES")
 
-# ── Local dev: inject secrets that firebase.json environmentVariables doesn't
-# forward to the Python subprocess when running via the emulator.
-# These are safe to hardcode here because this file is local-dev only.
-os.environ.setdefault("GEMINI_API_KEY", "REDACTED")
+# ── Local dev: load secrets from functions/.env.local if present.
+# This file is gitignored and never committed.
+_env_local = os.path.join(os.path.dirname(__file__), ".env.local")
+if os.path.exists(_env_local):
+    with open(_env_local) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _, _v = _line.partition("=")
+                os.environ.setdefault(_k.strip(), _v.strip())
 
 import firebase_admin
 from firebase_admin import firestore, storage as admin_storage
