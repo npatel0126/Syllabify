@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
+import { signInWithGoogle } from "@/lib/firebase/auth";
 
 /* ─────────────────────────────────────────────
    Tiny reusable primitives
@@ -190,10 +191,23 @@ function MockDashboard() {
 export default function LandingPage() {
   const router = useRouter();
   const { user, loading } = useFirebaseAuth();
+  const [signingIn, setSigningIn] = useState(false);
 
   useEffect(() => {
     if (!loading && user) router.replace("/dashboard");
   }, [loading, user, router]);
+
+  async function handleSignIn() {
+    setSigningIn(true);
+    try {
+      await signInWithGoogle();
+      router.replace("/dashboard");
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSigningIn(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -223,15 +237,20 @@ export default function LandingPage() {
             <span className="text-sm font-bold tracking-tight">Syllabify</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="text-sm font-medium text-[#9CA3AF] transition-colors hover:text-[#F9FAFB]">
-              Sign in
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-lg bg-[#4ADE80] px-4 py-1.5 text-sm font-semibold text-[#0A0A0A] transition-all hover:bg-[#86efac] active:scale-95"
+            <button
+              onClick={handleSignIn}
+              disabled={signingIn}
+              className="text-sm font-medium text-[#9CA3AF] transition-colors hover:text-[#F9FAFB] disabled:opacity-50"
             >
-              Get started
-            </Link>
+              Sign in
+            </button>
+            <button
+              onClick={handleSignIn}
+              disabled={signingIn}
+              className="rounded-lg bg-[#4ADE80] px-4 py-1.5 text-sm font-semibold text-[#0A0A0A] transition-all hover:bg-[#86efac] active:scale-95 disabled:opacity-50"
+            >
+              {signingIn ? "Signing in…" : "Get started"}
+            </button>
           </div>
         </div>
       </nav>
@@ -256,19 +275,21 @@ export default function LandingPage() {
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-4">
-          <Link
-            href="/signup"
-            className="group flex items-center gap-2 rounded-xl bg-[#4ADE80] px-7 py-3 text-sm font-bold text-[#0A0A0A] shadow-lg shadow-[#4ADE80]/20 transition-all hover:bg-[#86efac] hover:shadow-[#4ADE80]/30 active:scale-95"
+          <button
+            onClick={handleSignIn}
+            disabled={signingIn}
+            className="group flex items-center gap-2 rounded-xl bg-[#4ADE80] px-7 py-3 text-sm font-bold text-[#0A0A0A] shadow-lg shadow-[#4ADE80]/20 transition-all hover:bg-[#86efac] hover:shadow-[#4ADE80]/30 active:scale-95 disabled:opacity-50"
           >
-            Start for free
-            <span className="transition-transform group-hover:translate-x-0.5"><IconArrow /></span>
-          </Link>
-          <Link
-            href="/login"
-            className="rounded-xl border border-[#1F1F1F] bg-[#111111] px-7 py-3 text-sm font-semibold text-[#F9FAFB] transition-all hover:border-[#4ADE80]/30 hover:bg-[#1a1a1a] active:scale-95"
+            {signingIn ? "Signing in…" : "Start for free"}
+            {!signingIn && <span className="transition-transform group-hover:translate-x-0.5"><IconArrow /></span>}
+          </button>
+          <button
+            onClick={handleSignIn}
+            disabled={signingIn}
+            className="rounded-xl border border-[#1F1F1F] bg-[#111111] px-7 py-3 text-sm font-semibold text-[#F9FAFB] transition-all hover:border-[#4ADE80]/30 hover:bg-[#1a1a1a] active:scale-95 disabled:opacity-50"
           >
             Sign in
-          </Link>
+          </button>
         </div>
 
         <div className="relative mt-20 animate-float">
@@ -377,9 +398,9 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/signup" className="block rounded-xl border border-[#1F1F1F] py-2.5 text-center text-sm font-semibold text-[#F9FAFB] transition-all hover:border-[#4ADE80]/40 hover:bg-[#4ADE80]/5">
+              <button onClick={handleSignIn} disabled={signingIn} className="block w-full rounded-xl border border-[#1F1F1F] py-2.5 text-center text-sm font-semibold text-[#F9FAFB] transition-all hover:border-[#4ADE80]/40 hover:bg-[#4ADE80]/5 disabled:opacity-50">
                 Get started free
-              </Link>
+              </button>
             </div>
             {/* Pro tier */}
             <div className="relative rounded-2xl border border-[#4ADE80]/40 bg-[#111111] p-7 shadow-lg shadow-[#4ADE80]/5">
@@ -393,9 +414,9 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <Link href="/signup" className="block rounded-xl bg-[#4ADE80] py-2.5 text-center text-sm font-bold text-[#0A0A0A] transition-all hover:bg-[#86efac] active:scale-95">
-                Start free trial
-              </Link>
+              <button onClick={handleSignIn} disabled={signingIn} className="block w-full rounded-xl bg-[#4ADE80] py-2.5 text-center text-sm font-bold text-[#0A0A0A] transition-all hover:bg-[#86efac] active:scale-95 disabled:opacity-50">
+                {signingIn ? "Signing in…" : "Start free trial"}
+              </button>
             </div>
           </div>
         </div>
@@ -413,13 +434,14 @@ export default function LandingPage() {
           <p className="mb-10 text-base text-[#9CA3AF]">
             Upload your first syllabus in under 30 seconds — free, no credit card required.
           </p>
-          <Link
-            href="/signup"
-            className="group inline-flex items-center gap-2 rounded-xl bg-[#4ADE80] px-9 py-3.5 text-base font-bold text-[#0A0A0A] shadow-xl shadow-[#4ADE80]/20 transition-all hover:bg-[#86efac] hover:shadow-[#4ADE80]/30 active:scale-95"
+          <button
+            onClick={handleSignIn}
+            disabled={signingIn}
+            className="group inline-flex items-center gap-2 rounded-xl bg-[#4ADE80] px-9 py-3.5 text-base font-bold text-[#0A0A0A] shadow-xl shadow-[#4ADE80]/20 transition-all hover:bg-[#86efac] hover:shadow-[#4ADE80]/30 active:scale-95 disabled:opacity-50"
           >
-            Get started — it&apos;s free
-            <span className="transition-transform group-hover:translate-x-0.5"><IconArrow /></span>
-          </Link>
+            {signingIn ? "Signing in…" : "Get started — it's free"}
+            {!signingIn && <span className="transition-transform group-hover:translate-x-0.5"><IconArrow /></span>}
+          </button>
         </div>
       </section>
 
@@ -432,8 +454,8 @@ export default function LandingPage() {
           </div>
           <p className="text-xs text-[#4B5563]">© {new Date().getFullYear()} Syllabify. Built for students, by students.</p>
           <div className="flex items-center gap-5 text-xs text-[#4B5563]">
-            <Link href="/login" className="hover:text-[#9CA3AF] transition-colors">Sign in</Link>
-            <Link href="/signup" className="hover:text-[#9CA3AF] transition-colors">Sign up</Link>
+            <button onClick={handleSignIn} className="hover:text-[#9CA3AF] transition-colors">Sign in</button>
+            <button onClick={handleSignIn} className="hover:text-[#9CA3AF] transition-colors">Sign up</button>
           </div>
         </div>
       </footer>

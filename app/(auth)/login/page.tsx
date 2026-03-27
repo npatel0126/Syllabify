@@ -32,16 +32,6 @@ export default function LoginPage() {
     }
   }
 
-  // Auto-trigger Google sign-in as soon as auth is ready and no user is present.
-  // This makes clicking "Sign in" or "Get started" on the landing page immediately
-  // open the Google popup without requiring an extra button click.
-  useEffect(() => {
-    if (!loading && !user) {
-      void handleSignIn();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]);
-
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center bg-[#0A0A0A]">
