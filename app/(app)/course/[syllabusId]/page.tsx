@@ -53,6 +53,7 @@ export default function CourseOverviewPage() {
     return () => unsub();
   }, [syllabusId]);
 
+
   const handleConfirmDueDate = useCallback(async (assignmentId: string, dueDate: Date) => {
     await updateAssignment(assignmentId, {
       dueDate: dueDate as unknown as Timestamp,

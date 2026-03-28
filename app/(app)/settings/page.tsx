@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { signOut } from "@/lib/firebase/auth";
 import { getUserDoc, updateUserDoc } from "@/lib/firebase/firestore";
@@ -29,6 +29,7 @@ const REMINDER_OPTIONS: { value: ReminderStyle; label: string; description: stri
 
 export default function SettingsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useFirebaseAuth();
 
   const [userDoc, setUserDoc] = useState<User | null>(null);
@@ -40,6 +41,12 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+
+  // ── Google Calendar state ──
+  const [calendarConnected, setCalendarConnected] = useState(false);
+  const [calendarConnecting, setCalendarConnecting] = useState(false);
+  const [calendarDisconnecting, setCalendarDisconnecting] = useState(false);
+  const [calendarMsg, setCalendarMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) router.replace("/login");
@@ -53,8 +60,63 @@ export default function SettingsPage() {
         setUserDoc(doc);
         if (doc?.reminderStyle) setReminderStyle(doc.reminderStyle);
         if (doc?.timezone) setTimezone(doc.timezone);
+        setCalendarConnected(!!doc?.calendarConnected);
       })
       .finally(() => setDocLoading(false));
+  }, [user]);
+
+  // Handle ?calendar= param set by the OAuth callback redirect
+  useEffect(() => {
+    const status = searchParams.get("calendar");
+    if (!status) return;
+    if (status === "connected") {
+      setCalendarConnected(true);
+      setCalendarMsg({ type: "success", text: "Google Calendar connected!" });
+    } else if (status === "denied") {
+      setCalendarMsg({ type: "error", text: "Calendar access was denied." });
+    } else if (status === "no_refresh") {
+      setCalendarMsg({ type: "error", text: "No refresh token returned — please revoke Syllabify's access in your Google Account settings and try again." });
+    } else {
+      setCalendarMsg({ type: "error", text: "Calendar connection failed. Try again." });
+    }
+    // Clean the query param from the URL without a re-render loop
+    router.replace("/settings", { scroll: false });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleConnectCalendar = useCallback(async () => {
+    if (!user) return;
+    setCalendarConnecting(true);
+    setCalendarMsg(null);
+    try {
+      const token = await user.getIdToken();
+      // Redirect to the auth route — it will build the consent URL and redirect
+      window.location.href = `/api/google-calendar/auth?token=${encodeURIComponent(token)}`;
+    } catch {
+      setCalendarMsg({ type: "error", text: "Failed to start Google sign-in." });
+      setCalendarConnecting(false);
+    }
+  }, [user]);
+
+  const handleDisconnectCalendar = useCallback(async () => {
+    if (!user) return;
+    setCalendarDisconnecting(true);
+    setCalendarMsg(null);
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch("/api/google-calendar/disconnect", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setCalendarConnected(false);
+        setCalendarMsg({ type: "success", text: "Google Calendar disconnected." });
+      } else {
+        setCalendarMsg({ type: "error", text: "Disconnect failed — try again." });
+      }
+    } finally {
+      setCalendarDisconnecting(false);
+    }
   }, [user]);
 
   const handleSave = useCallback(async () => {
@@ -205,6 +267,78 @@ export default function SettingsPage() {
             </span>
           )}
         </div>
+
+        {/* ── Google Calendar ───────────────────────────────────────── */}
+        <section className="mt-5 rounded-2xl border border-neutral-800 bg-neutral-900/20 divide-y divide-neutral-800">
+          <div className="px-5 py-4">
+            <h2 className="text-sm font-semibold text-neutral-300">Google Calendar</h2>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              Sync assignment due dates directly to your Google Calendar.
+            </p>
+          </div>
+          <div className="px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              {/* Google Calendar icon */}
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-neutral-700 bg-neutral-800/60">
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
+                  <rect x="3" y="4" width="18" height="17" rx="2" stroke="#9CA3AF" strokeWidth="1.5"/>
+                  <path d="M3 9h18" stroke="#9CA3AF" strokeWidth="1.5"/>
+                  <path d="M8 2v4M16 2v4" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round"/>
+                  <rect x="7" y="13" width="4" height="3" rx="0.5" fill={calendarConnected ? "#4ADE80" : "#4B5563"}/>
+                </svg>
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-neutral-100">
+                  {calendarConnected ? "Connected" : "Not connected"}
+                </div>
+                <div className="text-xs text-neutral-500 mt-0.5">
+                  {calendarConnected
+                    ? "Due dates will sync when you click \u201cAdd to Calendar\u201d on any assignment."
+                    : "Connect to add assignment deadlines to your calendar with one click."}
+                </div>
+              </div>
+            </div>
+
+            {calendarConnected ? (
+              <button
+                onClick={() => void handleDisconnectCalendar()}
+                disabled={calendarDisconnecting}
+                className="rounded-xl border border-neutral-700 px-4 py-2 text-sm font-medium text-neutral-400 hover:border-red-500/40 hover:text-red-400 transition disabled:opacity-50"
+              >
+                {calendarDisconnecting ? "Disconnecting…" : "Disconnect"}
+              </button>
+            ) : (
+              <button
+                onClick={() => void handleConnectCalendar()}
+                disabled={calendarConnecting}
+                className="flex items-center gap-2 rounded-xl bg-[#4ADE80] px-4 py-2 text-sm font-semibold text-black hover:bg-[#22c55e] transition disabled:opacity-50"
+              >
+                {calendarConnecting && (
+                  <span className="h-3.5 w-3.5 rounded-full border-2 border-black/30 border-t-black animate-spin" />
+                )}
+                {calendarConnecting ? "Redirecting…" : "Connect Google Calendar"}
+              </button>
+            )}
+          </div>
+
+          {calendarMsg && (
+            <div className={[
+              "px-5 py-3 text-sm flex items-center gap-2",
+              calendarMsg.type === "success" ? "text-[#4ADE80]" : "text-red-400",
+            ].join(" ")}>
+              {calendarMsg.type === "success" ? (
+                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              ) : (
+                <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                </svg>
+              )}
+              {calendarMsg.text}
+            </div>
+          )}
+        </section>
 
         {/* ── Danger zone ──────────────────────────────────────────────── */}
         <section className="mt-10 rounded-2xl border border-red-900/40 bg-red-950/10">

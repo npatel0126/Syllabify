@@ -21,6 +21,7 @@ export interface User {
   phone: string;
   reminderStyle: ReminderStyle;
   calendarToken: string;
+  calendarConnected?: boolean;
   timezone: string;
   createdAt: Timestamp;
 }
