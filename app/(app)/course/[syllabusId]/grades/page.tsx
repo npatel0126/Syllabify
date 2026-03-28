@@ -183,6 +183,7 @@ function AddCustomModal({
                 <option value="homework">Homework</option>
                 <option value="paper">Paper</option>
                 <option value="lab">Lab</option>
+                <option value="term test">Term Test</option>
               </select>
             </div>
           </div>
@@ -347,6 +348,7 @@ export default function GradesPage() {
     homework: "Homework",
     paper: "Papers",
     lab: "Labs",
+    "term test": "Term Tests",
     other: "Other",
   };
 

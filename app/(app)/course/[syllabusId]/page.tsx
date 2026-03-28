@@ -13,13 +13,17 @@ import Spinner from "@/components/ui/Spinner";
 import type { Syllabus } from "@/types";
 import type { Timestamp } from "firebase/firestore";
 
-/** Thin bar showing a grade-weight percentage — avoids inline style props. */
+/** Thin bar showing a grade-weight percentage — uses <meter> so no inline styles needed. */
 function GradeBar({ weight }: { weight: number }) {
-  const widthClass = `w-[${Math.min(100, Math.max(0, weight))}%]`;
+  const pct = Math.min(100, Math.max(0, weight));
   return (
-    <div className="w-32 h-1.5 rounded-full bg-neutral-800 overflow-hidden">
-      <div className={`h-full rounded-full bg-[#7DD3FC]/60 ${widthClass}`} />
-    </div>
+    <meter
+      className="grade-meter bar-green"
+      value={pct}
+      min={0}
+      max={100}
+      aria-label={`${pct}% of grade`}
+    />
   );
 }
 

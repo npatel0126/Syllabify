@@ -81,7 +81,8 @@ export function calculateMinimumNeeded(
     .filter((a) => a.gradeWeight && !gradeMap.has(a.assignmentId))
     .map((a) => ({
       assignmentId: a.assignmentId,
-      minimumScore: Math.min(100, Math.max(0, requiredAvg)),
+      // Do NOT clamp to 100 — values > 100 signal "impossible" to the UI.
+      minimumScore: Math.max(0, requiredAvg),
     }));
 }
 

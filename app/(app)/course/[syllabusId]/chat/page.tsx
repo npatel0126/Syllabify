@@ -107,10 +107,13 @@ export default function ChatPage() {
           }
         }
 
-        // Persist assistant reply
+        // Persist assistant reply — use local fullContent, not stale streamingContent state
+        const cleanContent = citation
+          ? fullContent.split("\n").filter((l) => !l.startsWith("SOURCE:")).join("\n").trim()
+          : fullContent.trim();
         await addDoc(chatsRef, {
           role: "assistant",
-          content: streamingContent || fullContent,
+          content: cleanContent || fullContent,
           citation: citation || undefined,
           timestamp: serverTimestamp(),
         });

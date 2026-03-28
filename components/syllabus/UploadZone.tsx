@@ -128,18 +128,17 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
   const shadow = isDragover ? "shadow-[0_0_20px_2px_rgba(74,222,128,0.25)]" : "";
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
+    // <label> is the semantic wrapper for a custom file input — not an
+    // interactive control itself, so nested buttons/inputs are valid.
+    <label
       aria-label="Upload PDF syllabus"
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      onClick={() => state !== "uploading" && state !== "success" && inputRef.current?.click()}
-      onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
       className={[
         "relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed",
-        "w-full min-h-[220px] cursor-pointer select-none transition-all duration-200 px-6 py-10",
+        "w-full min-h-[220px] select-none transition-all duration-200 px-6 py-10",
+        state !== "uploading" && state !== "success" ? "cursor-pointer" : "cursor-default",
         borderColor,
         bgColor,
         shadow,
@@ -153,6 +152,9 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
         title="Select a PDF syllabus file"
         className="hidden"
         onChange={onInputChange}
+        // Prevent label's default click from firing twice when input is clicked directly
+        onClick={(e) => e.stopPropagation()}
+        disabled={state === "uploading" || state === "success"}
       />
 
       {/* ── Idle / Dragover ──────────────────────────────────────────────────── */}
@@ -177,12 +179,13 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
       {state === "uploading" && (
         <div className="flex w-full max-w-xs flex-col items-center gap-3">
           <p className="text-sm text-[#9CA3AF]">Uploading… {progress}%</p>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-[#1F1F1F]">
-            <div
-              className="h-full rounded-full bg-[#4ADE80] transition-all duration-150"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
+          <meter
+            className="grade-meter bar-green"
+            value={progress}
+            min={0}
+            max={100}
+            aria-label={`Upload progress ${progress}%`}
+          />
         </div>
       )}
 
@@ -204,13 +207,13 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
           </svg>
           <p className="text-sm text-red-400">{errorMsg}</p>
           <button
-            onClick={(e) => { e.stopPropagation(); reset(); }}
+            onClick={(e) => { e.preventDefault(); reset(); }}
             className="mt-1 rounded-lg border border-red-800 px-4 py-1.5 text-xs text-red-400 hover:bg-red-950 transition"
           >
             Try again
           </button>
         </>
       )}
-    </div>
+    </label>
   );
 }

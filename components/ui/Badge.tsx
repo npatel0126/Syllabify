@@ -6,11 +6,12 @@ import type { AssignmentType } from "@/types";
 type BadgeSize = "sm" | "md";
 
 const typeToClasses: Record<AssignmentType, { bg: string; text: string; border: string }> = {
-  exam: { bg: "bg-red-500/15", text: "text-red-200", border: "border-red-400/40" },
-  paper: { bg: "bg-primary-blue/15", text: "text-primary-blue", border: "border-primary-blue/40" },
-  quiz: { bg: "bg-yellow-500/15", text: "text-yellow-200", border: "border-yellow-400/40" },
-  lab: { bg: "bg-green-500/15", text: "text-green-200", border: "border-green-400/40" },
-  homework: { bg: "bg-neutral-500/15", text: "text-neutral-200", border: "border-neutral-400/40" }
+  exam:        { bg: "bg-red-500/15",     text: "text-red-200",     border: "border-red-400/40" },
+  paper:       { bg: "bg-primary-blue/15",text: "text-primary-blue",border: "border-primary-blue/40" },
+  quiz:        { bg: "bg-yellow-500/15",  text: "text-yellow-200",  border: "border-yellow-400/40" },
+  lab:         { bg: "bg-green-500/15",   text: "text-green-200",   border: "border-green-400/40" },
+  homework:    { bg: "bg-neutral-500/15", text: "text-neutral-200", border: "border-neutral-400/40" },
+  "term test": { bg: "bg-purple-500/15",  text: "text-purple-200",  border: "border-purple-400/40" },
 };
 
 export default function Badge({
