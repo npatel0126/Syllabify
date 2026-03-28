@@ -134,6 +134,34 @@ export async function updateAssignment(
   await updateDoc(doc(db, "assignments", assignmentId), { ...data });
 }
 
+export async function addAssignment(
+  data: Omit<Assignment, "assignmentId">
+): Promise<string> {
+  const res = await fetch("/api/add-assignment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({}));
+    throw new Error(error ?? `addAssignment failed: ${res.status}`);
+  }
+  const { assignmentId } = await res.json();
+  return assignmentId as string;
+}
+
+export async function deleteAssignment(assignmentId: string): Promise<void> {
+  const res = await fetch("/api/delete-assignment", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ assignmentId }),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({}));
+    throw new Error(error ?? `deleteAssignment failed: ${res.status}`);
+  }
+}
+
 // ─── Grades ───────────────────────────────────────────────────────────────────
 
 export function getGrades(
@@ -160,11 +188,16 @@ export function getGrades(
 export async function upsertGrade(
   gradeData: Omit<Grade, "gradeId" | "loggedAt"> & { gradeId?: string }
 ): Promise<void> {
-  const { gradeId, ...rest } = gradeData;
-  if (gradeId) {
-    await updateDoc(doc(db, "grades", gradeId), { ...rest, loggedAt: serverTimestamp() });
-  } else {
-    await addDoc(collection(db, "grades"), { ...rest, loggedAt: serverTimestamp() });
+  // Use the Admin-SDK-backed API route so writes succeed even when the
+  // Firestore emulator has no real auth token (auth emulator is disabled).
+  const res = await fetch("/api/upsert-grade", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(gradeData),
+  });
+  if (!res.ok) {
+    const { error } = await res.json().catch(() => ({}));
+    throw new Error(error ?? `upsertGrade failed: ${res.status}`);
   }
 }
 
