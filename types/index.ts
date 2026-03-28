@@ -2,7 +2,7 @@ import type { Timestamp } from "firebase/firestore";
 
 export type ReminderStyle = "aggressive" | "moderate" | "light";
 export type SyllabusStatus = "uploading" | "processing" | "ready" | "error";
-export type AssignmentType = "exam" | "paper" | "quiz" | "lab" | "homework";
+export type AssignmentType = "exam" | "paper" | "quiz" | "lab" | "homework" | "term test";
 export type Role = "user" | "assistant";
 export type TargetGrade =
   | "A+"
@@ -50,6 +50,7 @@ export interface Assignment {
   notes: string;
   calendarEventId: string;
   reminderTaskIds: string[];
+  isCustom?: boolean; // user-added entry not from the syllabus
 }
 
 export interface Grade {

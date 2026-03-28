@@ -7,6 +7,53 @@
   color-scheme: dark;
 }
 
+/* Dynamic progress bars — set --pct on the element */
+.progress-fill {
+  width: calc(var(--pct, 0) * 1%);
+  transition: width 0.3s ease;
+}
+
+/* Grade progress meter (replaces inline-style progress bars) */
+.grade-meter {
+  display: block;
+  width: 100%;
+  height: 0.5rem;
+  border-radius: 9999px;
+  overflow: hidden;
+  border: none;
+  background: #1f1f1f;
+  -webkit-appearance: none;
+  appearance: none;
+}
+/* WebKit fill */
+.grade-meter::-webkit-meter-bar { background: #1f1f1f; border: none; border-radius: 9999px; }
+.grade-meter::-webkit-meter-optimum-value,
+.grade-meter::-webkit-meter-suboptimum-value,
+.grade-meter::-webkit-meter-even-less-good-value { border-radius: 9999px; transition: width 0.3s ease; }
+/* Firefox fill */
+.grade-meter::-moz-meter-bar { border-radius: 9999px; transition: width 0.3s ease; }
+
+/* Color variants */
+.grade-meter.bar-green::-webkit-meter-optimum-value { background: #4ade80; }
+.grade-meter.bar-green::-webkit-meter-suboptimum-value { background: #4ade80; }
+.grade-meter.bar-green::-webkit-meter-even-less-good-value { background: #4ade80; }
+.grade-meter.bar-green::-moz-meter-bar { background: #4ade80; }
+
+.grade-meter.bar-yellow::-webkit-meter-optimum-value { background: #fcd34d; }
+.grade-meter.bar-yellow::-webkit-meter-suboptimum-value { background: #fcd34d; }
+.grade-meter.bar-yellow::-webkit-meter-even-less-good-value { background: #fcd34d; }
+.grade-meter.bar-yellow::-moz-meter-bar { background: #fcd34d; }
+
+.grade-meter.bar-orange::-webkit-meter-optimum-value { background: #fb923c; }
+.grade-meter.bar-orange::-webkit-meter-suboptimum-value { background: #fb923c; }
+.grade-meter.bar-orange::-webkit-meter-even-less-good-value { background: #fb923c; }
+.grade-meter.bar-orange::-moz-meter-bar { background: #fb923c; }
+
+.grade-meter.bar-red::-webkit-meter-optimum-value { background: #ef4444; }
+.grade-meter.bar-red::-webkit-meter-suboptimum-value { background: #ef4444; }
+.grade-meter.bar-red::-webkit-meter-even-less-good-value { background: #ef4444; }
+.grade-meter.bar-red::-moz-meter-bar { background: #ef4444; }
+
 html,
 body {
   height: 100%;
