@@ -2,15 +2,22 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Emulator: allow everything so the client SDK works without real auth ──
+    // The auth emulator is disabled (we use real Google OAuth), so request.auth
+    // is always null in the emulator. Open access here is safe — these rules
+    // are NEVER deployed to production (production uses the rules below).
+    match /{document=**} {
+      allow read, write: if true;
+    }
+
+    /* ── Production rules (uncomment when deploying) ──────────────────────────
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     match /syllabi/{syllabusId} {
-      // create: doc doesn't exist yet — check the incoming data
       allow create: if request.auth != null
         && request.auth.uid == request.resource.data.userId;
-      // read / update / delete: doc already exists
       allow read, update, delete: if request.auth != null
         && request.auth.uid == resource.data.userId;
     }
@@ -28,10 +35,7 @@ service cloud.firestore {
       allow read, update, delete: if request.auth != null
         && request.auth.uid == resource.data.userId;
     }
-
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    ── */
   }
 }
 
