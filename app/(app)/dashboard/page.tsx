@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
 import { signOut } from "@/lib/firebase/auth";
+import { updateSyllabus, deleteSyllabus } from "@/lib/firebase/firestore";
 import useSyllabi from "@/hooks/useSyllabi";
 import UploadZone from "@/components/syllabus/UploadZone";
 import type { Syllabus } from "@/types";
@@ -41,42 +42,150 @@ function getInitials(name: string | null, email: string | null): string {
 }
 
 // ── CourseCard ────────────────────────────────────────────────────────────────
-function CourseCard({ syllabus }: { syllabus: Syllabus }) {
+function CourseCard({
+  syllabus,
+  onRename,
+  onDelete,
+}: {
+  syllabus: Syllabus;
+  onRename: (id: string, newName: string) => Promise<void>;
+  onDelete: (id: string, name: string) => void;
+}) {
   const isReady = syllabus.status === "ready";
   const isProcessing = syllabus.status === "processing";
   const isError = syllabus.status === "error";
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(syllabus.courseName);
+  const [saving, setSaving] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const renameRef = useRef<HTMLInputElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuOpen]);
+
+  // Focus input when rename starts
+  useEffect(() => {
+    if (renaming) {
+      setRenameValue(syllabus.courseName);
+      setTimeout(() => renameRef.current?.select(), 0);
+    }
+  }, [renaming, syllabus.courseName]);
+
+  async function commitRename() {
+    const trimmed = renameValue.trim();
+    if (!trimmed || trimmed === syllabus.courseName) {
+      setRenaming(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      await onRename(syllabus.syllabusId, trimmed);
+    } finally {
+      setSaving(false);
+      setRenaming(false);
+    }
+  }
 
   return (
     <div className="rounded-2xl border border-[#1F1F1F] bg-[#111111] p-5 flex flex-col gap-4 hover:border-[#2A2A2A] transition-all duration-200">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <h3 className="text-base font-semibold text-white truncate leading-snug">
-            {syllabus.courseName}
-          </h3>
-          {(syllabus.professor || syllabus.semester) && (
+          {renaming ? (
+            <input
+              ref={renameRef}
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void commitRename();
+                if (e.key === "Escape") { setRenaming(false); }
+              }}
+              onBlur={() => void commitRename()}
+              disabled={saving}
+              title="Course name"
+              placeholder="Course name"
+              className="w-full rounded-lg border border-[#4ADE80]/40 bg-[#0A0A0A] px-2 py-1 text-sm font-semibold text-white outline-none focus:border-[#4ADE80] disabled:opacity-60"
+            />
+          ) : (
+            <h3 className="text-base font-semibold text-white truncate leading-snug">
+              {syllabus.courseName}
+            </h3>
+          )}
+          {(syllabus.professor || syllabus.semester) && !renaming && (
             <p className="mt-0.5 text-xs text-[#6B7280] truncate">
               {[syllabus.professor, syllabus.semester].filter(Boolean).join(" · ")}
             </p>
           )}
         </div>
-        {isProcessing && (
-          <span className="shrink-0 flex items-center gap-1.5 rounded-full border border-[#7DD3FC]/30 bg-[#0c1a2e] px-2.5 py-1 text-xs text-[#7DD3FC]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#7DD3FC] animate-pulse" />
-            Processing
-          </span>
-        )}
-        {isReady && (
-          <span className="shrink-0 flex items-center gap-1.5 rounded-full border border-[#4ADE80]/30 bg-[#052e16] px-2.5 py-1 text-xs text-[#4ADE80]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#4ADE80]" />
-            Ready
-          </span>
-        )}
-        {isError && (
-          <span className="shrink-0 flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-950/40 px-2.5 py-1 text-xs text-red-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
-            Error
-          </span>
-        )}
+
+        <div className="flex items-center gap-2 shrink-0">
+          {/* status badge */}
+          {isProcessing && (
+            <span className="flex items-center gap-1.5 rounded-full border border-[#7DD3FC]/30 bg-[#0c1a2e] px-2.5 py-1 text-xs text-[#7DD3FC]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#7DD3FC] animate-pulse" />
+              Processing
+            </span>
+          )}
+          {isReady && (
+            <span className="flex items-center gap-1.5 rounded-full border border-[#4ADE80]/30 bg-[#052e16] px-2.5 py-1 text-xs text-[#4ADE80]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[#4ADE80]" />
+              Ready
+            </span>
+          )}
+          {isError && (
+            <span className="flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-950/40 px-2.5 py-1 text-xs text-red-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+              Error
+            </span>
+          )}
+
+          {/* ⋯ menu */}
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              className="rounded-lg p-1 text-[#4B5563] hover:bg-[#1F1F1F] hover:text-[#9CA3AF] transition"
+              aria-label="Course options"
+            >
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM11.5 15.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" />
+              </svg>
+            </button>
+
+            {menuOpen && (
+              <div className="absolute right-0 top-7 z-30 w-40 rounded-xl border border-[#1F1F1F] bg-[#161616] py-1 shadow-2xl">
+                <button
+                  onClick={() => { setMenuOpen(false); setRenaming(true); }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-[#D1D5DB] hover:bg-[#1F1F1F] transition"
+                >
+                  <svg className="h-3.5 w-3.5 text-[#9CA3AF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                  </svg>
+                  Rename
+                </button>
+                <div className="my-1 h-px bg-[#1F1F1F]" />
+                <button
+                  onClick={() => { setMenuOpen(false); onDelete(syllabus.syllabusId, syllabus.courseName); }}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:bg-red-950/40 transition"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                  </svg>
+                  Delete course
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {isReady ? (
@@ -158,6 +267,66 @@ function UploadModal({
   );
 }
 
+// ── Delete Confirm Modal ──────────────────────────────────────────────────────
+function DeleteConfirmModal({
+  courseName,
+  onConfirm,
+  onCancel,
+  deleting,
+}: {
+  courseName: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  deleting: boolean;
+}) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
+    >
+      <div className="w-full max-w-sm rounded-2xl border border-[#1F1F1F] bg-[#111111] p-6 shadow-2xl">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-red-950/60 border border-red-500/20 mb-4">
+          <svg className="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+          </svg>
+        </div>
+        <h2 className="text-base font-semibold text-white">Delete course?</h2>
+        <p className="mt-1.5 text-sm text-[#6B7280]">
+          <span className="font-medium text-[#D1D5DB]">{courseName}</span> and all its
+          assignments and grades will be permanently deleted. This cannot be undone.
+        </p>
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={onCancel}
+            disabled={deleting}
+            className="flex-1 rounded-xl border border-[#1F1F1F] px-4 py-2.5 text-sm font-medium text-[#9CA3AF] hover:bg-[#1F1F1F] transition disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={deleting}
+            className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 transition disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {deleting && (
+              <span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+            )}
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter();
@@ -165,6 +334,10 @@ export default function DashboardPage() {
   const { syllabi } = useSyllabi(user?.uid);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [activeNav, setActiveNav] = useState<"overview" | "upload" | "settings">("overview");
+
+  // ── delete state ──
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -183,6 +356,25 @@ export default function DashboardPage() {
     setUploadOpen(false);
     setActiveNav("overview");
   }, []);
+
+  const handleRename = useCallback(async (id: string, newName: string) => {
+    await updateSyllabus(id, { courseName: newName });
+  }, []);
+
+  const handleDeleteRequest = useCallback((id: string, name: string) => {
+    setDeleteTarget({ id, name });
+  }, []);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteSyllabus(deleteTarget.id);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  }, [deleteTarget]);
 
   if (loading) {
     return (
@@ -203,6 +395,15 @@ export default function DashboardPage() {
   return (
     <>
       <UploadModal open={uploadOpen} onClose={closeUpload} onUploadComplete={handleUploadComplete} />
+
+      {deleteTarget && (
+        <DeleteConfirmModal
+          courseName={deleteTarget.name}
+          onConfirm={() => void handleDeleteConfirm()}
+          onCancel={() => setDeleteTarget(null)}
+          deleting={deleting}
+        />
+      )}
 
       <div className="flex min-h-screen bg-[#0A0A0A]">
         {/* ── Sidebar ──────────────────────────────────────────────────────── */}
@@ -375,7 +576,12 @@ export default function DashboardPage() {
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                   {syllabi.map((s) => (
-                    <CourseCard key={s.syllabusId} syllabus={s} />
+                    <CourseCard
+                      key={s.syllabusId}
+                      syllabus={s}
+                      onRename={handleRename}
+                      onDelete={handleDeleteRequest}
+                    />
                   ))}
                 </div>
               </>

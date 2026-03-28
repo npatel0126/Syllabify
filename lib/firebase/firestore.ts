@@ -4,6 +4,9 @@ import {
   addDoc,
   getDoc,
   updateDoc,
+  deleteDoc,
+  getDocs,
+  writeBatch,
   onSnapshot,
   query,
   where,
@@ -67,6 +70,31 @@ export async function updateSyllabus(
     ...data,
     updatedAt: serverTimestamp(),
   });
+}
+
+export async function deleteSyllabus(syllabusId: string): Promise<void> {
+  // Delete the syllabus doc itself
+  await deleteDoc(doc(db, "syllabi", syllabusId));
+
+  // Batch-delete all assignments that belong to this syllabus
+  const assignSnap = await getDocs(
+    query(collection(db, "assignments"), where("syllabusId", "==", syllabusId))
+  );
+  if (!assignSnap.empty) {
+    const batch = writeBatch(db);
+    assignSnap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+
+  // Batch-delete all grades that belong to this syllabus
+  const gradeSnap = await getDocs(
+    query(collection(db, "grades"), where("syllabusId", "==", syllabusId))
+  );
+  if (!gradeSnap.empty) {
+    const batch = writeBatch(db);
+    gradeSnap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
 }
 
 // ─── Assignments ──────────────────────────────────────────────────────────────
