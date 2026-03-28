@@ -21,13 +21,16 @@ export default function useAssignments(syllabusId: string | undefined, userId: s
     const unsub = getAssignments(
       syllabusId,
       (data) => {
-        // TODO: Sort by dueDate ascending once dueDate is consistently a Date.
         setAssignments(data);
+        setLoading(false);
       },
-      () => setError("Failed to load assignments")
+      (err) => {
+        console.error("[useAssignments] onSnapshot error:", err);
+        setError("Failed to load assignments");
+        setLoading(false);
+      }
     );
 
-    setLoading(false);
     return () => unsub();
   }, [syllabusId, userId]);
 

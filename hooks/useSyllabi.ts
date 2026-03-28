@@ -20,11 +20,17 @@ export default function useSyllabi(userId: string | undefined) {
 
     const unsub = getSyllabi(
       userId,
-      (data) => setSyllabi(data),
-      () => setError("Failed to load syllabi")
+      (data) => {
+        setSyllabi(data);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("[useSyllabi] onSnapshot error:", err);
+        setError("Failed to load syllabi");
+        setLoading(false);
+      }
     );
 
-    setLoading(false);
     return () => unsub();
   }, [userId]);
 

@@ -30,11 +30,17 @@ export default function useGrades(syllabusId: string | undefined, userId: string
     const unsub = getGrades(
       syllabusId,
       userId,
-      (data) => setGrades(data),
-      () => setError("Failed to load grades")
+      (data) => {
+        setGrades(data);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("[useGrades] onSnapshot error:", err);
+        setError("Failed to load grades");
+        setLoading(false);
+      }
     );
 
-    setLoading(false);
     return () => unsub();
   }, [syllabusId, userId]);
 
