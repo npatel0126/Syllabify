@@ -70,12 +70,19 @@ export async function POST(req: NextRequest) {
   const calendar = google.calendar({ version: "v3", auth: oauth2 });
 
   // --- Build event date ---
-  // dueDate may be a Firestore Timestamp or an ISO string from the extractor
+  // dueDate may be a Firestore Timestamp or an ISO string from the extractor.
+  // IMPORTANT: use local year/month/day — NOT toISOString() which is always UTC
+  // and can shift the date by ±1 day depending on the server's timezone offset.
   let dueDateStr: string;
   if (typeof assignment.dueDate === "string") {
-    dueDateStr = assignment.dueDate; // already ISO
+    // Already an ISO date string like "2026-01-15" — use as-is
+    dueDateStr = assignment.dueDate.slice(0, 10);
   } else if (assignment.dueDate?.toDate) {
-    dueDateStr = assignment.dueDate.toDate().toISOString().split("T")[0];
+    const d = assignment.dueDate.toDate();
+    const yyyy = d.getFullYear();
+    const mm   = String(d.getMonth() + 1).padStart(2, "0");
+    const dd   = String(d.getDate()).padStart(2, "0");
+    dueDateStr = `${yyyy}-${mm}-${dd}`;
   } else {
     return NextResponse.json({ error: "Unrecognised dueDate format" }, { status: 400 });
   }
