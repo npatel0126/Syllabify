@@ -10,11 +10,12 @@ const ALGO = "aes-256-gcm";
 
 function getKey(): Buffer {
   const secret = process.env.ENCRYPTION_SECRET ?? "";
-  if (secret.length < 32) {
-    // Pad / hash so dev works even with a short placeholder
-    return Buffer.from(secret.padEnd(32, "0").slice(0, 32), "utf8");
+  // If it looks like a 64-char hex string (from `openssl rand -hex 32`), decode it as hex.
+  if (/^[0-9a-f]{64}$/i.test(secret)) {
+    return Buffer.from(secret, "hex"); // → exactly 32 bytes
   }
-  return Buffer.from(secret.slice(0, 32), "utf8");
+  // Fallback: treat as UTF-8, pad/truncate to 32 bytes
+  return Buffer.from(secret.padEnd(32, "0").slice(0, 32), "utf8");
 }
 
 /** Returns a hex string: iv(24) + authTag(32) + ciphertext */
