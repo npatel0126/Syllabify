@@ -8,7 +8,7 @@ This repository is currently scaffolded with placeholders and TODOs.
 
 - Firebase Auth (Google OAuth)
 - PDF upload + text extraction
-- GPT-4o extraction to structured assignments JSON
+- Gemini extraction to structured assignments JSON
 - Pinecone embeddings + RAG chat with citations
 - Grade tracker + what-if calculator
 - Twilio SMS + SendGrid email reminders via Cloud Tasks
