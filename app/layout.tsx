@@ -11,7 +11,14 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: "Syllabify",
-  description: "Upload your syllabus. Never miss a deadline."
+  description: "Upload your syllabus. Never miss a deadline.",
+  icons: {
+    icon: [
+      { url: "/logo.png", type: "image/png", sizes: "any" },
+      { url: "/syllabify-logo.svg", type: "image/svg+xml" },
+    ],
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
