@@ -22,9 +22,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { assignmentId, syllabusId } = (await req.json()) as {
+  const { assignmentId, syllabusId, customTitle, colorId } = (await req.json()) as {
     assignmentId: string;
     syllabusId: string;
+    customTitle?: string;   // optional override for event summary
+    colorId?: string;       // Google Calendar colorId "1"–"11"
   };
 
   if (!assignmentId || !syllabusId) {
@@ -87,8 +89,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unrecognised dueDate format" }, { status: 400 });
   }
 
+  const eventSummary = customTitle ?? `📚 ${assignment.title}`;
+
   const eventBody = {
-    summary: `📚 ${assignment.title}`,
+    summary: eventSummary,
+    colorId: colorId ?? undefined,
     description: [
       assignment.notes ? `Notes: ${assignment.notes}` : null,
       `Weight: ${assignment.gradeWeight ?? "—"}%`,
@@ -99,7 +104,7 @@ export async function POST(req: NextRequest) {
     reminders: {
       useDefault: false,
       overrides: [
-        { method: "popup",  minutes: 24 * 60 },   // 1 day before
+        { method: "popup",  minutes: 24 * 60 },     // 1 day before
         { method: "popup",  minutes: 7 * 24 * 60 }, // 1 week before
       ],
     },
