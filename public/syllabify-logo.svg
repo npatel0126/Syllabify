@@ -1,16 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
   <defs>
-    <linearGradient id="sGrad" x1="60" y1="40" x2="140" y2="160" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stop-color="#4ADE80"/>
-      <stop offset="100%" stop-color="#22C55E"/>
+    <linearGradient id="g" x1="55" y1="45" x2="145" y2="155" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#5EE87A"/>
+      <stop offset="100%" stop-color="#2CBF52"/>
     </linearGradient>
   </defs>
-  <path
-    d="M130 58 C130 44 119 36 100 36 C76 36 58 51 58 70 C58 89 73 98 100 106 C127 114 142 123 142 142 C142 161 124 167 100 167 C76 167 58 157 58 147"
-    stroke="url(#sGrad)"
-    stroke-width="28"
-    stroke-linecap="round"
-    fill="none"
-  />
+  <!--
+    Two thick rounded-rectangle stripes tilted ~-30°, stacked like an S.
+    Top stripe: upper-left region
+    Bottom stripe: lower-right region
+    Gap cut through the middle gives the S illusion.
+  -->
+  <!-- Top arm of the S -->
+  <rect x="52" y="54" width="105" height="44" rx="22" fill="url(#g)"
+        transform="rotate(-28 104.5 76)"/>
+  <!-- Bottom arm of the S -->
+  <rect x="43" y="102" width="105" height="44" rx="22" fill="url(#g)"
+        transform="rotate(-28 95.5 124)"/>
 </svg>
 
