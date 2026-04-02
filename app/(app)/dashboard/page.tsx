@@ -77,7 +77,7 @@ const TYPE_COLOR: Record<string, string> = {
   "term test": "#C084FC",
 };
 
-type NavTab = "overview" | "calendar" | "upload" | "settings";
+type NavTab = "courses" | "calendar";
 
 // ── CourseCard ────────────────────────────────────────────────────────────────
 function CourseCard({
@@ -94,6 +94,7 @@ function CourseCard({
   const isError = syllabus.status === "error";
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [cardHovered, setCardHovered] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(syllabus.courseName);
   const [saving, setSaving] = useState(false);
@@ -126,8 +127,20 @@ function CourseCard({
     finally { setSaving(false); setRenaming(false); }
   }
 
+  // Left accent border by status
+  const accentColor = isProcessing
+    ? "border-l-[#7DD3FC]"
+    : isError
+    ? "border-l-red-500"
+    : "border-l-[#4ADE80]";
+
   return (
-    <div className="rounded-2xl border border-[#1F1F1F] bg-[#111111] p-5 flex flex-col gap-4 hover:border-[#2A2A2A] transition-all duration-200">
+    <div
+      className={`relative rounded-2xl border border-[#1F1F1F] border-l-2 ${accentColor} bg-[#111111] p-5 flex flex-col gap-4 transition-all duration-200 hover:border-[#2A2A2A] hover:border-l-2`}
+      onMouseEnter={() => setCardHovered(true)}
+      onMouseLeave={() => { setCardHovered(false); }}
+    >
+      {/* ── Card header: name + hover kebab ── */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           {renaming ? (
@@ -155,71 +168,82 @@ function CourseCard({
           )}
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          {isProcessing && (
-            <span className="flex items-center gap-1.5 rounded-full border border-[#7DD3FC]/30 bg-[#0c1a2e] px-2.5 py-1 text-xs text-[#7DD3FC]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#7DD3FC] animate-pulse" />Processing
-            </span>
+        {/* Kebab — only visible on hover or when menu is open */}
+        <div
+          className={`relative shrink-0 transition-opacity duration-150 ${cardHovered || menuOpen ? "opacity-100" : "opacity-0"}`}
+          ref={menuRef}
+        >
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            className="rounded-lg p-1 text-[#4B5563] hover:bg-[#1F1F1F] hover:text-[#9CA3AF] transition"
+            aria-label="Course options"
+          >
+            <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM11.5 15.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" />
+            </svg>
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-7 z-30 w-40 rounded-xl border border-[#1F1F1F] bg-[#161616] py-1 shadow-2xl">
+              <button
+                onClick={() => { setMenuOpen(false); setRenaming(true); }}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-[#D1D5DB] hover:bg-[#1F1F1F] transition"
+              >
+                <svg className="h-3.5 w-3.5 text-[#9CA3AF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                </svg>
+                Rename
+              </button>
+              <div className="my-1 h-px bg-[#1F1F1F]" />
+              <button
+                onClick={() => { setMenuOpen(false); onDelete(syllabus.syllabusId, syllabus.courseName); }}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:bg-red-950/40 transition"
+              >
+                <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                </svg>
+                Delete course
+              </button>
+            </div>
           )}
-          {isReady && (
-            <span className="flex items-center gap-1.5 rounded-full border border-[#4ADE80]/30 bg-[#052e16] px-2.5 py-1 text-xs text-[#4ADE80]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#4ADE80]" />Ready
-            </span>
-          )}
-          {isError && (
-            <span className="flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-950/40 px-2.5 py-1 text-xs text-red-400">
-              <span className="h-1.5 w-1.5 rounded-full bg-red-400" />Error
-            </span>
-          )}
-
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={() => setMenuOpen((o) => !o)}
-              className="rounded-lg p-1 text-[#4B5563] hover:bg-[#1F1F1F] hover:text-[#9CA3AF] transition"
-              aria-label="Course options"
-            >
-              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM10 8.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM11.5 15.5a1.5 1.5 0 1 0-3 0 1.5 1.5 0 0 0 3 0Z" />
-              </svg>
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-7 z-30 w-40 rounded-xl border border-[#1F1F1F] bg-[#161616] py-1 shadow-2xl">
-                <button
-                  onClick={() => { setMenuOpen(false); setRenaming(true); }}
-                  className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-[#D1D5DB] hover:bg-[#1F1F1F] transition"
-                >
-                  <svg className="h-3.5 w-3.5 text-[#9CA3AF]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-                  </svg>
-                  Rename
-                </button>
-                <div className="my-1 h-px bg-[#1F1F1F]" />
-                <button
-                  onClick={() => { setMenuOpen(false); onDelete(syllabus.syllabusId, syllabus.courseName); }}
-                  className="flex w-full items-center gap-2.5 px-3 py-2 text-xs text-red-400 hover:bg-red-950/40 transition"
-                >
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                  </svg>
-                  Delete course
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
-      {isReady ? (
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/course/${syllabus.syllabusId}`} className="rounded-lg border border-[#1F1F1F] bg-[#0A0A0A] px-3 py-1.5 text-xs text-[#9CA3AF] hover:border-[#4ADE80]/40 hover:text-[#4ADE80] transition-all duration-150">Overview</Link>
-          <Link href={`/course/${syllabus.syllabusId}/chat`} className="rounded-lg border border-[#1F1F1F] bg-[#0A0A0A] px-3 py-1.5 text-xs text-[#9CA3AF] hover:border-[#7DD3FC]/40 hover:text-[#7DD3FC] transition-all duration-150">Chat with SyllAI</Link>
-          <Link href={`/course/${syllabus.syllabusId}/grades`} className="rounded-lg border border-[#1F1F1F] bg-[#0A0A0A] px-3 py-1.5 text-xs text-[#9CA3AF] hover:border-[#A78BFA]/40 hover:text-[#A78BFA] transition-all duration-150">Grades</Link>
-        </div>
-      ) : isProcessing ? (
-        <p className="text-xs text-[#6B7280]">AI is extracting your assignments — usually under a minute…</p>
-      ) : isError ? (
-        <p className="text-xs text-red-400/80">Something went wrong during processing. Try re-uploading.</p>
-      ) : null}
+      {/* ── Action chips — always present, dimmed when not ready ── */}
+      <div className="flex gap-2 pt-1">
+        {isReady ? (
+          <>
+            <Link
+              href={`/course/${syllabus.syllabusId}`}
+              className="flex-1 rounded-lg border border-[#1F1F1F] bg-[#0A0A0A] px-2 py-2 text-center text-xs font-medium text-[#9CA3AF] hover:border-[#4ADE80]/40 hover:text-[#4ADE80] transition-all duration-150"
+            >
+              Overview
+            </Link>
+            <Link
+              href={`/course/${syllabus.syllabusId}/chat`}
+              className="flex-1 rounded-lg border border-[#1F1F1F] bg-[#0A0A0A] px-2 py-2 text-center text-xs font-medium text-[#9CA3AF] hover:border-[#7DD3FC]/40 hover:text-[#7DD3FC] transition-all duration-150"
+            >
+              Chat
+            </Link>
+            <Link
+              href={`/course/${syllabus.syllabusId}/grades`}
+              className="flex-1 rounded-lg border border-[#1F1F1F] bg-[#0A0A0A] px-2 py-2 text-center text-xs font-medium text-[#9CA3AF] hover:border-[#A78BFA]/40 hover:text-[#A78BFA] transition-all duration-150"
+            >
+              Grades
+            </Link>
+          </>
+        ) : (
+          <>
+            {(["Overview", "Chat", "Grades"] as const).map((label) => (
+              <span
+                key={label}
+                className="flex-1 rounded-lg border border-[#1F1F1F]/60 bg-[#0A0A0A]/60 px-2 py-2 text-center text-xs font-medium text-[#374151] cursor-not-allowed select-none"
+              >
+                {label}
+              </span>
+            ))}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -373,7 +397,7 @@ function UpcomingList({ assignments, days = 14 }: { assignments: Assignment[]; d
 }
 
 // ── Calendar icon SVG ─────────────────────────────────────────────────────────
-function CalIconSvg({ className }: { className?: string }) {
+function CalIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none">
       <rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="1.8"/>
@@ -381,6 +405,65 @@ function CalIconSvg({ className }: { className?: string }) {
       <path d="M8 2v4M16 2v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/>
       <path d="M12 13v4m0 0-2-2m2 2 2-2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
+  );
+}
+
+// ── Processing Banner ─────────────────────────────────────────────────────────
+function ProcessingBanner({ syllabi }: { syllabi: Syllabus[] }) {
+  const processing = syllabi.filter((s) => s.status === "processing");
+  const errored = syllabi.filter((s) => s.status === "error");
+  if (processing.length === 0 && errored.length === 0) return null;
+
+  return (
+    <div className="flex flex-col gap-2 mb-6">
+      {processing.length > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-[#7DD3FC]/20 bg-[#0c1a2e] px-4 py-3">
+          <span className="h-2 w-2 rounded-full bg-[#7DD3FC] animate-pulse shrink-0" />
+          <p className="text-sm text-[#7DD3FC]">
+            <span className="font-semibold">{processing.map((s) => s.courseName).join(", ")}</span>
+            {" "}— AI is extracting assignments. Usually under a minute.
+          </p>
+        </div>
+      )}
+      {errored.length > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-950/30 px-4 py-3">
+          <svg className="h-4 w-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+          </svg>
+          <p className="text-sm text-red-400">
+            <span className="font-semibold">{errored.map((s) => s.courseName).join(", ")}</span>
+            {" "}— Processing failed. Try re-uploading the syllabus.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Stats Row ─────────────────────────────────────────────────────────────────
+function StatsRow({ syllabi, assignments }: { syllabi: Syllabus[]; assignments: Assignment[] }) {
+  const now = new Date();
+  const cutoff7 = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const dueThisWeek = assignments.filter((a) => {
+    const d = toLocalDate(a.dueDate);
+    return d && d >= now && d <= cutoff7;
+  }).length;
+
+  const stats = [
+    { label: "Courses", value: syllabi.length, color: "text-[#4ADE80]" },
+    { label: "Due this week", value: dueThisWeek, color: dueThisWeek > 0 ? "text-[#FB923C]" : "text-white" },
+    { label: "Total assignments", value: assignments.length, color: "text-white" },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-3 mb-6">
+      {stats.map(({ label, value, color }) => (
+        <div key={label} className="rounded-xl border border-[#1F1F1F] bg-[#111111] px-4 py-3">
+          <p className={`text-xl font-bold ${color}`}>{value}</p>
+          <p className="text-[11px] text-[#6B7280] mt-0.5">{label}</p>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -392,7 +475,7 @@ export default function DashboardPage() {
   const { assignments } = useAllAssignments(user?.uid);
 
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [activeNav, setActiveNav] = useState<NavTab>("overview");
+  const [activeTab, setActiveTab] = useState<NavTab>("courses");
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -414,9 +497,9 @@ export default function DashboardPage() {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
-  const handleUploadComplete = useCallback(() => { setActiveNav("overview"); }, []);
-  const openUpload = useCallback(() => { setUploadOpen(true); setActiveNav("upload"); }, []);
-  const closeUpload = useCallback(() => { setUploadOpen(false); setActiveNav("overview"); }, []);
+  const handleUploadComplete = useCallback(() => { setActiveTab("courses"); }, []);
+  const openUpload = useCallback(() => { setUploadOpen(true); }, []);
+  const closeUpload = useCallback(() => { setUploadOpen(false); }, []);
   const handleRename = useCallback(async (id: string, newName: string) => { await updateSyllabus(id, { courseName: newName }); }, []);
   const handleDeleteRequest = useCallback((id: string, name: string) => { setDeleteTarget({ id, name }); }, []);
   const handleDeleteConfirm = useCallback(async () => {
@@ -436,9 +519,6 @@ export default function DashboardPage() {
 
   const firstName = getFirstName(user.displayName, user.email);
   const initials = getInitials(user.displayName, user.email);
-  const totalCourses = syllabi.length;
-  const readyCount = syllabi.filter((s) => s.status === "ready").length;
-  const processingCount = syllabi.filter((s) => s.status === "processing").length;
 
   const now = new Date();
   const cutoff14 = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
@@ -481,21 +561,21 @@ export default function DashboardPage() {
           </div>
 
           <nav className="flex-1 flex flex-col gap-1 px-3 py-4">
-            {/* Overview */}
+            {/* My Courses */}
             <button
-              onClick={() => { setActiveNav("overview"); setUploadOpen(false); }}
-              className={["flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left w-full", activeNav === "overview" ? "bg-[#111111] text-white" : "text-[#6B7280] hover:bg-[#111111] hover:text-[#D1D5DB]"].join(" ")}
+              onClick={() => setActiveTab("courses")}
+              className={["flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left w-full", activeTab === "courses" ? "bg-[#111111] text-white" : "text-[#6B7280] hover:bg-[#111111] hover:text-[#D1D5DB]"].join(" ")}
             >
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
               </svg>
-              Overview
+              My Courses
             </button>
 
             {/* Calendar */}
             <button
-              onClick={() => { setActiveNav("calendar"); setUploadOpen(false); }}
-              className={["flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left w-full", activeNav === "calendar" ? "bg-[#111111] text-white" : "text-[#6B7280] hover:bg-[#111111] hover:text-[#D1D5DB]"].join(" ")}
+              onClick={() => setActiveTab("calendar")}
+              className={["flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left w-full", activeTab === "calendar" ? "bg-[#111111] text-white" : "text-[#6B7280] hover:bg-[#111111] hover:text-[#D1D5DB]"].join(" ")}
             >
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <rect x="3" y="4" width="18" height="17" rx="2" stroke="currentColor" strokeWidth="1.8" fill="none"/>
@@ -508,10 +588,13 @@ export default function DashboardPage() {
               )}
             </button>
 
-            {/* Upload */}
+            {/* Divider */}
+            <div className="my-2 h-px bg-[#1F1F1F]" />
+
+            {/* Upload — action button, not a tab */}
             <button
               onClick={openUpload}
-              className={["flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left w-full", activeNav === "upload" ? "bg-[#111111] text-white" : "text-[#6B7280] hover:bg-[#111111] hover:text-[#D1D5DB]"].join(" ")}
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left w-full text-[#6B7280] hover:bg-[#111111] hover:text-[#D1D5DB]"
             >
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
@@ -522,8 +605,7 @@ export default function DashboardPage() {
             {/* Settings */}
             <Link
               href="/settings"
-              onClick={() => setActiveNav("settings")}
-              className={["flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all", activeNav === "settings" ? "bg-[#111111] text-white" : "text-[#6B7280] hover:bg-[#111111] hover:text-[#D1D5DB]"].join(" ")}
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-[#6B7280] hover:bg-[#111111] hover:text-[#D1D5DB]"
             >
               <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
@@ -572,7 +654,7 @@ export default function DashboardPage() {
                   onClick={() => setBulkSyncOpen(true)}
                   className="hidden sm:flex items-center gap-2 rounded-xl border border-[#7DD3FC]/30 bg-[#0c1a2e] px-3.5 py-2 text-xs font-semibold text-[#7DD3FC] hover:border-[#7DD3FC]/50 transition"
                 >
-                  <CalIconSvg className="h-3.5 w-3.5" />
+                  <CalIcon className="h-3.5 w-3.5" />
                   Add All to Calendar
                 </button>
               )}
@@ -591,14 +673,14 @@ export default function DashboardPage() {
             </div>
 
             {/* ── CALENDAR TAB ── */}
-            {activeNav === "calendar" && (
+            {activeTab === "calendar" && (
               <div className="flex flex-col xl:flex-row gap-6">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xs font-semibold uppercase tracking-widest text-[#4B5563]">Assignment Calendar</h2>
                     {calendarConnected && (
                       <button onClick={() => setBulkSyncOpen(true)} className="flex items-center gap-1.5 rounded-lg border border-[#7DD3FC]/30 bg-[#0c1a2e] px-3 py-1.5 text-xs font-semibold text-[#7DD3FC] hover:border-[#7DD3FC]/50 transition">
-                        <CalIconSvg className="h-3 w-3" />
+                        <CalIcon className="h-3 w-3" />
                         Add All to Calendar
                       </button>
                     )}
@@ -620,73 +702,57 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* ── OVERVIEW TAB ── */}
-            {activeNav === "overview" && (
+            {/* ── COURSES TAB ── */}
+            {activeTab === "courses" && (
               <>
-                {totalCourses > 0 && (
-                  <div className="grid grid-cols-3 gap-4 mb-8">
-                    {[
-                      { label: "Total Courses", value: totalCourses, color: "text-white" },
-                      { label: "Ready", value: readyCount, color: "text-[#4ADE80]" },
-                      { label: "Processing", value: processingCount, color: "text-[#7DD3FC]" },
-                    ].map(({ label, value, color }) => (
-                      <div key={label} className="rounded-xl border border-[#1F1F1F] bg-[#111111] px-4 py-4">
-                        <p className={`text-2xl font-bold ${color}`}>{value}</p>
-                        <p className="mt-1 text-xs text-[#6B7280]">{label}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {processingCount > 0 && (
-                  <div className="mb-6 flex items-center gap-2 rounded-xl border border-[#7DD3FC]/20 bg-[#0c1a2e] px-4 py-3">
-                    <span className="h-2 w-2 rounded-full bg-[#7DD3FC] animate-pulse shrink-0" />
-                    <p className="text-sm text-[#7DD3FC]">
-                      {processingCount === 1 ? "1 syllabus is being processed by AI — usually under a minute." : `${processingCount} syllabi are being processed — usually under a minute.`}
-                    </p>
-                  </div>
-                )}
+                {/* Processing / error banner */}
+                <ProcessingBanner syllabi={syllabi} />
 
                 {syllabi.length > 0 ? (
-                  <div className="flex flex-col xl:flex-row gap-6">
-                    {/* Course grid */}
-                    <div className="flex-1 min-w-0">
-                      <h2 className="text-xs font-semibold uppercase tracking-widest text-[#4B5563] mb-4">Your Courses</h2>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        {syllabi.map((s) => (
-                          <CourseCard key={s.syllabusId} syllabus={s} onRename={handleRename} onDelete={handleDeleteRequest} />
-                        ))}
-                      </div>
-                    </div>
+                  <>
+                    {/* Stats row */}
+                    <StatsRow syllabi={syllabi} assignments={assignments} />
 
-                    {/* Right rail */}
-                    {assignments.length > 0 && (
-                      <div className="w-full xl:w-72 shrink-0 space-y-4">
-                        <div>
-                          <h2 className="text-xs font-semibold uppercase tracking-widest text-[#4B5563] mb-4">Calendar</h2>
-                          <MiniCalendar assignments={assignments} onDayClick={(dayA) => setDayAssignments(dayA)} />
+                    <div className="flex flex-col xl:flex-row gap-6">
+                      {/* Course grid */}
+                      <div className="flex-1 min-w-0">
+                        <h2 className="text-xs font-semibold uppercase tracking-widest text-[#4B5563] mb-4">Your Courses</h2>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          {syllabi.map((s) => (
+                            <CourseCard key={s.syllabusId} syllabus={s} onRename={handleRename} onDelete={handleDeleteRequest} />
+                          ))}
                         </div>
-
-                        <UpcomingList assignments={assignments} days={14} />
-
-                        {calendarConnected ? (
-                          <button
-                            onClick={() => setBulkSyncOpen(true)}
-                            className="w-full flex items-center justify-center gap-2 rounded-xl border border-[#7DD3FC]/30 bg-[#0c1a2e] px-4 py-2.5 text-xs font-semibold text-[#7DD3FC] hover:border-[#7DD3FC]/50 transition"
-                          >
-                            <CalIconSvg className="h-3.5 w-3.5" />
-                            Add All to Calendar
-                          </button>
-                        ) : (
-                          <div className="rounded-xl border border-[#7DD3FC]/20 bg-[#0c1a2e] px-4 py-4">
-                            <p className="text-xs font-semibold text-[#7DD3FC] mb-1">Sync with Google Calendar</p>
-                            <p className="text-[11px] text-[#6B7280] mb-3">Add all assignments as calendar events in one click.</p>
-                            <Link href="/settings" className="inline-flex items-center gap-1.5 rounded-lg bg-[#7DD3FC] px-3 py-1.5 text-xs font-semibold text-black hover:bg-[#38bdf8] transition">Connect →</Link>
-                          </div>
-                        )}
                       </div>
-                    )}
-                  </div>
+
+                      {/* Right rail — only if there are assignments */}
+                      {assignments.length > 0 && (
+                        <div className="w-full xl:w-72 shrink-0 space-y-4">
+                          <div>
+                            <h2 className="text-xs font-semibold uppercase tracking-widest text-[#4B5563] mb-4">Calendar</h2>
+                            <MiniCalendar assignments={assignments} onDayClick={(dayA) => setDayAssignments(dayA)} />
+                          </div>
+
+                          <UpcomingList assignments={assignments} days={14} />
+
+                          {calendarConnected ? (
+                            <button
+                              onClick={() => setBulkSyncOpen(true)}
+                              className="w-full flex items-center justify-center gap-2 rounded-xl border border-[#7DD3FC]/30 bg-[#0c1a2e] px-4 py-2.5 text-xs font-semibold text-[#7DD3FC] hover:border-[#7DD3FC]/50 transition"
+                            >
+                              <CalIcon className="h-3.5 w-3.5" />
+                              Add All to Calendar
+                            </button>
+                          ) : (
+                            <div className="rounded-xl border border-[#7DD3FC]/20 bg-[#0c1a2e] px-4 py-4">
+                              <p className="text-xs font-semibold text-[#7DD3FC] mb-1">Sync with Google Calendar</p>
+                              <p className="text-[11px] text-[#6B7280] mb-3">Add all assignments as calendar events in one click.</p>
+                              <Link href="/settings" className="inline-flex items-center gap-1.5 rounded-lg bg-[#7DD3FC] px-3 py-1.5 text-xs font-semibold text-black hover:bg-[#38bdf8] transition">Connect →</Link>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <div className="flex flex-col items-center justify-center gap-5 py-24 text-center">
                     <div className="flex h-20 w-20 items-center justify-center rounded-2xl border border-[#1F1F1F] bg-[#111111]">
