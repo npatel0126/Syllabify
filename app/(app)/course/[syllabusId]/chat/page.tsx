@@ -15,6 +15,8 @@ const SUGGESTED = [
   "What are the exam dates?",
   "How is my final grade calculated?",
   "What is the late submission policy?",
+  "What is the professor's email?",
+  "When are office hours?",
 ];
 
 export default function ChatPage() {

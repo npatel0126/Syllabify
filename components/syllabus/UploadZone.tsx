@@ -62,12 +62,16 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
         const { syllabusId } = (await res.json()) as { syllabusId: string };
 
         // ── Step 2: upload PDF to Storage using syllabusId as filename ────────
-        const { downloadUrl } = await uploadPDF(file, user.uid, syllabusId, (pct) => {
+        const { downloadUrl, storagePath } = await uploadPDF(file, user.uid, syllabusId, (pct) => {
           setProgress(pct);
         });
 
         // ── Step 3: update Firestore doc with the download URL ────────────────
-        await updateSyllabus(syllabusId, { pdfUrl: downloadUrl, status: "processing" });
+        await updateSyllabus(syllabusId, {
+          pdfUrl: downloadUrl,
+          storagePath,
+          status: "processing",
+        });
 
         setState("success");
         onUploadComplete?.(downloadUrl, syllabusId);

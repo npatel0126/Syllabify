@@ -38,6 +38,7 @@ export interface Syllabus {
   officeLocation?: string;
   semester?: string;
   pdfUrl: string;
+  storagePath?: string;
   pineconeNamespace: string;
   status: SyllabusStatus;
   createdAt: Timestamp;
