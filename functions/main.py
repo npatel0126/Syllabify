@@ -35,7 +35,7 @@ from firebase_functions import storage_fn
 from google.cloud.firestore_v1 import SERVER_TIMESTAMP
 
 from pdf_processor import extract_text
-from ai_extractor import extract_assignments, extract_grade_breakdown
+from ai_extractor import extract_assignments, extract_grade_breakdown, extract_course_metadata
 from embedder import embed_syllabus
 
 # ── Firebase Admin init ───────────────────────────────────────────────────────
@@ -152,6 +152,11 @@ def on_syllabus_uploaded(event: storage_fn.CloudEvent) -> None:  # type: ignore[
         grade_breakdown = extract_grade_breakdown(text)
         logger.info("[%s] Grade breakdown: %s", syllabus_id, grade_breakdown)
 
+        # ── 3b. Extract course metadata (professor, email, office hours…) ────
+        logger.info("[%s] Extracting course metadata…", syllabus_id)
+        course_meta = extract_course_metadata(text)
+        logger.info("[%s] Course metadata: %s", syllabus_id, course_meta)
+
         # ── 4. Save assignments to Firestore ──────────────────────────────────
         batch = _get_db().batch()
         assignments_ref = _get_db().collection("assignments")
@@ -187,17 +192,27 @@ def on_syllabus_uploaded(event: storage_fn.CloudEvent) -> None:  # type: ignore[
                 syllabus_id, embed_exc,
             )
 
-        # ── 6. Fetch course name for context (best-effort) ────────────────────
+        # ── 6. Fetch existing course name (user may have set it manually) ──────
         syllabus_snap = syllabus_ref.get()
-        course_name = (syllabus_snap.to_dict() or {}).get("courseName", "")
+        existing = syllabus_snap.to_dict() or {}
+        # Prefer AI-extracted name only if the user hasn't already set one
+        course_name = existing.get("courseName") or course_meta.get("courseName") or ""
 
-        # ── 7. Mark syllabus ready ────────────────────────────────────────────
+        # ── 7. Mark syllabus ready + persist all extracted metadata ──────────
         syllabus_ref.update({
-            "status":             "ready",
-            "courseName":         course_name,
-            "gradeBreakdown":     grade_breakdown,
-            "pineconeNamespace":  pinecone_namespace,
-            "updatedAt":          SERVER_TIMESTAMP,
+            "status":            "ready",
+            "courseName":        course_name,
+            "gradeBreakdown":    grade_breakdown,
+            "pineconeNamespace": pinecone_namespace,
+            # Course metadata from AI
+            "professor":         course_meta.get("professor"),
+            "professorEmail":    course_meta.get("email"),
+            "officeHours":       course_meta.get("officeHours"),
+            "officeLocation":    course_meta.get("officeLocation"),
+            "professorPhone":    course_meta.get("phone"),
+            "courseCode":        course_meta.get("courseCode"),
+            "semester":          existing.get("semester") or course_meta.get("semester"),
+            "updatedAt":         SERVER_TIMESTAMP,
         })
         logger.info("[%s] Syllabus marked ready ✓", syllabus_id)
 

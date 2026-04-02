@@ -83,7 +83,19 @@ export async function POST(req: NextRequest) {
       });
     }
     const data = syllabusSnap.data()!;
-    syllabusContext = `Course: ${data.courseName ?? "Unknown"}\nProfessor: ${data.professor ?? "Unknown"}\nSemester: ${data.semester ?? "Unknown"}`;
+
+    // Build a rich metadata block so the AI always has contact info
+    const metaLines = [
+      `Course: ${data.courseName ?? "Unknown"}`,
+      data.courseCode   ? `Course Code: ${data.courseCode}` : null,
+      data.semester     ? `Semester: ${data.semester}` : null,
+      data.professor    ? `Professor: ${data.professor}` : null,
+      data.professorEmail  ? `Professor Email: ${data.professorEmail}` : null,
+      data.professorPhone  ? `Professor Phone: ${data.professorPhone}` : null,
+      data.officeHours     ? `Office Hours: ${data.officeHours}` : null,
+      data.officeLocation  ? `Office Location: ${data.officeLocation}` : null,
+    ].filter(Boolean);
+    syllabusContext = metaLines.join("\n");
 
     // Pull assignments as additional context
     const assignmentsSnap = await adminDb

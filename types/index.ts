@@ -30,8 +30,13 @@ export interface Syllabus {
   syllabusId: string;
   userId: string;
   courseName: string;
-  professor: string;
-  semester: string;
+  courseCode?: string;
+  professor?: string;
+  professorEmail?: string;
+  professorPhone?: string;
+  officeHours?: string;
+  officeLocation?: string;
+  semester?: string;
   pdfUrl: string;
   pineconeNamespace: string;
   status: SyllabusStatus;

@@ -249,3 +249,37 @@ def extract_grade_breakdown(text: str) -> dict[str, float]:
     raw = _chat(_GRADE_BREAKDOWN_SYSTEM, text[:_MAX_TEXT_CHARS])
     breakdown: dict[str, float] = _parse_json(raw)  # type: ignore[assignment]
     return breakdown
+
+
+_COURSE_META_SYSTEM = (
+    "You are an academic assistant. "
+    "Extract course metadata from this syllabus. "
+    "Return ONLY a valid JSON object with these keys (use null for any field not found):\n"
+    '  "professor"    : string  — full name of the instructor/professor\n'
+    '  "email"        : string  — professor\'s email address\n'
+    '  "officeHours"  : string  — office hours (days/times/location)\n'
+    '  "officeLocation": string — office room number or building\n'
+    '  "phone"        : string  — professor\'s phone/office number\n'
+    '  "courseCode"   : string  — course code/number (e.g. "CS 101")\n'
+    '  "semester"     : string  — semester and year (e.g. "Fall 2026")\n'
+    '  "courseName"   : string  — full course title\n'
+    "Do not include any text outside the JSON object."
+)
+
+
+def extract_course_metadata(text: str) -> dict:
+    """
+    Extract professor name, email, office hours, and other course metadata.
+    Instructor info is almost always in the first few pages so we only
+    send the first _MAX_TEXT_CHARS chars (already covers the full header).
+    """
+    try:
+        raw = _chat(_COURSE_META_SYSTEM, text[:_MAX_TEXT_CHARS])
+        meta: dict = _parse_json(raw)  # type: ignore[assignment]
+        # Ensure all expected keys exist
+        for key in ("professor", "email", "officeHours", "officeLocation", "phone", "courseCode", "semester", "courseName"):
+            meta.setdefault(key, None)
+        return meta
+    except Exception as exc:
+        logger.warning("Course metadata extraction failed (non-fatal): %s", exc)
+        return {k: None for k in ("professor", "email", "officeHours", "officeLocation", "phone", "courseCode", "semester", "courseName")}
