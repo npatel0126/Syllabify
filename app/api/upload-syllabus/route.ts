@@ -23,17 +23,27 @@ export async function POST(req: NextRequest) {
 
     // ── Create Firestore record via Admin SDK (bypasses security rules) ──────
     const now = FieldValue.serverTimestamp();
+    // Derive the storage path deterministically so reprocess works before
+    // the client calls back with the real pdfUrl.
+    const tmpId = `tmp_${userId}_${Date.now()}`;
     const docRef = await adminDb.collection("syllabi").add({
       userId,
       courseName,
-      professor: "",
-      semester: "",
+      professor: null,
+      professorEmail: null,
+      officeHours: null,
+      officeLocation: null,
+      professorPhone: null,
+      courseCode: null,
+      semester: null,
       pdfUrl: "",
+      storagePath: "",   // filled in by client after upload
       pineconeNamespace: `ns_${userId}_${Date.now()}`,
       status: "uploading",
       createdAt: now,
       updatedAt: now,
     });
+    void tmpId; // suppress lint
     const syllabusId = docRef.id;
 
     return NextResponse.json({ syllabusId }, { status: 201 });
