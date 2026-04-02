@@ -7,6 +7,38 @@
   color-scheme: dark;
 }
 
+/* ── Dark mode (default) ── */
+html.dark, html:not(.light) {
+  --bg-page:    #0A0A0A;
+  --bg-surface: #111111;
+  --bg-surface2:#161616;
+  --border:     #1F1F1F;
+  --border2:    #2A2A2A;
+  --text-1:     #F9FAFB;
+  --text-2:     #9CA3AF;
+  --text-3:     #4B5563;
+  color-scheme: dark;
+}
+
+/* ── Light mode ── */
+html.light {
+  --bg-page:    #F9FAFB;
+  --bg-surface: #FFFFFF;
+  --bg-surface2:#F3F4F6;
+  --border:     #E5E7EB;
+  --border2:    #D1D5DB;
+  --text-1:     #111827;
+  --text-2:     #6B7280;
+  --text-3:     #9CA3AF;
+  color-scheme: light;
+}
+
+/* Apply CSS vars to body so all pages inherit */
+body {
+  background-color: var(--bg-page);
+  color: var(--text-1);
+}
+
 /* Dynamic progress bars — set --pct on the element */
 .progress-fill {
   width: calc(var(--pct, 0) * 1%);

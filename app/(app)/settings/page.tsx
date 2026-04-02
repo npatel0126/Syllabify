@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
+import { useTheme } from "@/lib/theme-context";
 import { signOut } from "@/lib/firebase/auth";
 import { getUserDoc, updateUserDoc } from "@/lib/firebase/firestore";
 import Button from "@/components/ui/Button";
@@ -31,6 +32,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading: authLoading } = useFirebaseAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const [userDoc, setUserDoc] = useState<User | null>(null);
   const [docLoading, setDocLoading] = useState(true);
@@ -192,6 +194,56 @@ export default function SettingsPage() {
                 <div className="text-xs text-neutral-500 mt-0.5">{userDoc.phone}</div>
               )}
             </div>
+          </div>
+        </section>
+
+        {/* ── Appearance ──────────────────────────────────────────────── */}
+        <section className="mt-5 rounded-2xl border border-neutral-800 bg-neutral-900/20 divide-y divide-neutral-800">
+          <div className="px-5 py-4">
+            <h2 className="text-sm font-semibold text-neutral-300">Appearance</h2>
+            <p className="text-xs text-neutral-500 mt-0.5">Choose your preferred colour scheme.</p>
+          </div>
+          <div className="px-5 py-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {/* Icon */}
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-neutral-700 bg-neutral-800/60">
+                {theme === "dark" ? (
+                  <svg className="h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+                  </svg>
+                ) : (
+                  <svg className="h-5 w-5 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+                  </svg>
+                )}
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-neutral-100">
+                  {theme === "dark" ? "Dark mode" : "Light mode"}
+                </div>
+                <div className="text-xs text-neutral-500 mt-0.5">
+                  {theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                </div>
+              </div>
+            </div>
+
+            {/* Toggle switch */}
+            <button
+              role="switch"
+              aria-checked={theme === "light"}
+              onClick={toggleTheme}
+              className={[
+                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#4ADE80]/60",
+                theme === "light" ? "bg-[#4ADE80]" : "bg-neutral-700",
+              ].join(" ")}
+            >
+              <span
+                className={[
+                  "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                  theme === "light" ? "translate-x-6" : "translate-x-1",
+                ].join(" ")}
+              />
+            </button>
           </div>
         </section>
 

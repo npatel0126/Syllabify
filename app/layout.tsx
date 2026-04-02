@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import { FirebaseAuthProvider } from "@/lib/firebase/auth-context";
+import { ThemeProvider } from "@/lib/theme-context";
 import Toaster from "@/components/ui/Toast";
 
 const dmSans = DM_Sans({
@@ -28,12 +29,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="bg-[#0A0A0A]">
-      <body className={`${dmSans.className} bg-[#0A0A0A] text-text-primary`}>
-        <FirebaseAuthProvider>
-          {children}
-          <Toaster />
-        </FirebaseAuthProvider>
+    <html lang="en" className="dark bg-[#0A0A0A]">
+      <body className={`${dmSans.className} bg-[var(--bg-page)] text-[var(--text-1)]`}>
+        <ThemeProvider>
+          <FirebaseAuthProvider>
+            {children}
+            <Toaster />
+          </FirebaseAuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
