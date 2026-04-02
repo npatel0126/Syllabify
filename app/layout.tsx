@@ -29,8 +29,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark bg-[#0A0A0A]">
-      <body className={`${dmSans.className} bg-[var(--bg-page)] text-[var(--text-1)]`}>
+    <html lang="en" className="dark">
+      <head>
+        {/* Inline script runs before paint — avoids flash on theme load */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('syllabify-theme');if(t==='light'){document.documentElement.classList.remove('dark');document.documentElement.classList.add('light');}}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className={`${dmSans.className}`}>
         <ThemeProvider>
           <FirebaseAuthProvider>
             {children}
