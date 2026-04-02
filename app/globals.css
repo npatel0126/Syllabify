@@ -41,10 +41,11 @@ body {
 
 /* ── Light mode overrides for hardcoded dark colours ── */
 html.light .bg-\[\#0A0A0A\]  { background-color: var(--bg-page) !important; }
+html.light .bg-\[\#0D0D0D\]  { background-color: var(--bg-surface2) !important; }
 html.light .bg-\[\#111111\]  { background-color: var(--bg-surface) !important; }
+html.light .bg-\[\#141414\]  { background-color: var(--bg-surface2) !important; }
 html.light .bg-\[\#161616\]  { background-color: var(--bg-surface2) !important; }
 html.light .bg-\[\#1F1F1F\]  { background-color: var(--border) !important; }
-html.light .bg-\[\#141414\]  { background-color: var(--bg-surface2) !important; }
 
 html.light .border-\[\#1F1F1F\] { border-color: var(--border) !important; }
 html.light .border-\[\#2A2A2A\] { border-color: var(--border2) !important; }
@@ -68,12 +69,25 @@ html.light .border-\[\#7DD3FC\]\/20 { border-color: #BFDBFE !important; }
 html.light .border-\[\#7DD3FC\]\/30 { border-color: #93C5FD !important; }
 html.light .text-\[\#374151\]  { color: var(--text-2) !important; }
 
+/* Processing / status badges */
+html.light .bg-\[\#052e16\]    { background-color: #DCFCE7 !important; }
+html.light .bg-\[\#052e16\]\/60 { background-color: #DCFCE7 !important; }
+
+/* Transparent page/surface overlays used in navbar, headers */
+html.light .bg-\[\#0A0A0A\]\/80 { background-color: rgba(249,250,251,0.85) !important; }
+html.light .bg-\[\#0A0A0A\]\/60 { background-color: rgba(249,250,251,0.7) !important; }
+
 /* Red accent panels */
 html.light .bg-red-950\/30      { background-color: #FEF2F2 !important; }
-html.light .bg-\[\#0A0A0A\]\/60 { background-color: var(--bg-surface2) !important; }
+html.light .bg-red-950\/10      { background-color: #FFF5F5 !important; }
 html.light .border-\[\#1F1F1F\]\/60 { border-color: var(--border) !important; }
+html.light .border-\[\#1F1F1F\]\/50 { border-color: var(--border) !important; }
+html.light .border-\[\#1F1F1F\]\/80 { border-color: var(--border) !important; }
 
 html.light .bg-neutral-900\/20  { background-color: #ffffff !important; }
+html.light .bg-neutral-900\/30  { background-color: #F9FAFB !important; }
+html.light .bg-neutral-900\/60  { background-color: #F3F4F6 !important; }
+html.light .bg-neutral-900      { background-color: #F3F4F6 !important; }
 html.light .border-neutral-800  { border-color: #e5e7eb !important; }
 html.light .divide-neutral-800 > * + * { border-color: #e5e7eb !important; }
 html.light .text-neutral-100    { color: #111827 !important; }
@@ -88,6 +102,11 @@ html.light .bg-neutral-800      { background-color: #e5e7eb !important; }
 html.light .border-neutral-700  { border-color: #d1d5db !important; }
 html.light .hover\:border-neutral-700:hover { border-color: #d1d5db !important; }
 html.light .border-neutral-800  { border-color: #e5e7eb !important; }
+html.light .hover\:text-neutral-200:hover { color: #111827 !important; }
+html.light .hover\:border-neutral-600:hover { border-color: #9ca3af !important; }
+
+/* primary-blue tab indicator inherits fine; neutral tab text */
+html.light .text-neutral-400.hover\:text-neutral-200:hover { color: #374151 !important; }
 
 /* Dynamic progress bars — set --pct on the element */
 .progress-fill {
@@ -109,6 +128,10 @@ html.light .border-neutral-800  { border-color: #e5e7eb !important; }
 }
 /* WebKit fill */
 .grade-meter::-webkit-meter-bar { background: #1f1f1f; border: none; border-radius: 9999px; }
+
+/* Light-mode track */
+html.light .grade-meter { background: #E5E7EB; }
+html.light .grade-meter::-webkit-meter-bar { background: #E5E7EB; }
 .grade-meter::-webkit-meter-optimum-value,
 .grade-meter::-webkit-meter-suboptimum-value,
 .grade-meter::-webkit-meter-even-less-good-value { border-radius: 9999px; transition: width 0.3s ease; }
