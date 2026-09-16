@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signInWithGoogle } from "@/lib/firebase/auth";
 import { useFirebaseAuth } from "@/lib/firebase/auth-context";
+import { getUserDoc } from "@/lib/firebase/firestore";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,8 +23,14 @@ export default function LoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      await signInWithGoogle();
-      router.replace("/dashboard");
+      const firebaseUser = await signInWithGoogle();
+      // Check if user doc exists — if not, route to onboarding
+      const userDoc = await getUserDoc(firebaseUser.uid);
+      if (!userDoc || !userDoc.reminderStyle) {
+        router.replace("/onboarding");
+      } else {
+        router.replace("/dashboard");
+      }
     } catch (err) {
       setError("Sign in failed. Please try again.");
       console.error(err);
