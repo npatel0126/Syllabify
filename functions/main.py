@@ -4,9 +4,9 @@ Firebase Cloud Functions entry point for Syllabify.
 
 Registered functions
 --------------------
-on_syllabus_uploaded  – Storage trigger: fires when a PDF lands at
+on_syllabus_uploaded  – Storage trigger: fires when a file lands at
                         users/{userId}/syllabi/{filename}
-                        Extracts text → parses assignments via GPT-4o →
+                        Extracts text → parses assignments via Gemini →
                         saves to Firestore → marks syllabus "ready".
 """
 
@@ -77,20 +77,37 @@ def _find_syllabus_id(user_id: str, filename: str) -> str | None:
     """
     Look up the Firestore syllabus doc that matches this upload.
     The API route creates the doc before the upload starts; we match on
-    userId and the storage path suffix (filename).
+    userId and the most recent uploading/processing doc.
     """
     db = _get_db()
-    docs = (
-        db.collection("syllabi")
-        .where("userId", "==", user_id)
-        .where("status", "in", ["uploading", "processing"])
-        .order_by("createdAt", direction="DESCENDING")
-        .limit(1)
-        .stream()
+    try:
+        docs = (
+            db.collection("syllabi")
+            .where("userId", "==", user_id)
+            .where("status", "in", ["uploading", "processing"])
+            .order_by("createdAt", direction="DESCENDING")
+            .limit(1)
+            .stream()
+        )
+        for doc in docs:
+            return doc.id
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Indexed query failed (%s), falling back to manual filter", exc)
+
+    # Fallback: fetch all docs for this user and filter/sort in Python.
+    # Avoids needing a composite index in dev/emulator environments.
+    all_docs = list(db.collection("syllabi").where("userId", "==", user_id).stream())
+    candidates = [
+        d for d in all_docs
+        if (d.to_dict() or {}).get("status") in ("uploading", "processing")
+    ]
+    if not candidates:
+        return None
+    candidates.sort(
+        key=lambda d: (d.to_dict() or {}).get("createdAt") or 0,
+        reverse=True,
     )
-    for doc in docs:
-        return doc.id
-    return None
+    return candidates[0].id
 
 
 # ── Cloud Function ────────────────────────────────────────────────────────────
@@ -128,27 +145,33 @@ def on_syllabus_uploaded(event: storage_fn.CloudEvent) -> None:  # type: ignore[
 
     tmp_path: str | None = None
     try:
-        # ── 1. Download PDF to a temp file ────────────────────────────────────
-        logger.info("[%s] Downloading PDF from Storage…", syllabus_id)
+        # ── 1. Download file to a temp file (preserve real extension) ────────
+        logger.info("[%s] Downloading file from Storage…", syllabus_id)
         bucket = admin_storage.bucket()
         blob = bucket.blob(object_name)
 
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        _, ext = os.path.splitext(filename)
+        ext = ext.lower() if ext.lower() in (".pdf", ".png", ".jpg", ".jpeg") else ".pdf"
+
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
             tmp_path = tmp.name
         blob.download_to_filename(tmp_path)
-        logger.info("[%s] PDF saved to %s", syllabus_id, tmp_path)
+        logger.info("[%s] File saved to %s (ext=%s)", syllabus_id, tmp_path, ext)
 
         # ── 2. Extract text ───────────────────────────────────────────────────
         logger.info("[%s] Extracting text…", syllabus_id)
         text = extract_text(tmp_path)
         logger.info("[%s] Extracted %d characters", syllabus_id, len(text))
 
-        # ── 3. Parse assignments and grade breakdown via GPT-4o ───────────────
-        logger.info("[%s] Calling GPT-4o for assignment extraction…", syllabus_id)
+        if not text.strip():
+            raise RuntimeError("No text could be extracted from this file.")
+
+        # ── 3. Parse assignments and grade breakdown via Gemini ───────────────
+        logger.info("[%s] Calling Gemini for assignment extraction…", syllabus_id)
         assignments = extract_assignments(text)
         logger.info("[%s] Found %d assignments", syllabus_id, len(assignments))
 
-        logger.info("[%s] Calling GPT-4o for grade breakdown…", syllabus_id)
+        logger.info("[%s] Calling Gemini for grade breakdown…", syllabus_id)
         grade_breakdown = extract_grade_breakdown(text)
         logger.info("[%s] Grade breakdown: %s", syllabus_id, grade_breakdown)
 

@@ -1,17 +1,19 @@
 """
 pdf_processor.py
-Extracts text from a PDF file.
+Extracts text from a PDF or image file.
 
 Primary path  : pdfplumber  (works for digital / text-based PDFs)
 Fallback path : pdf2image + pytesseract  (scanned / image-only PDFs)
+Images        : pytesseract directly (PNG/JPG)
 """
 
+import os
 import re
-import pdfplumber
-
 
 # Minimum character count to consider pdfplumber output usable.
 _MIN_TEXT_LENGTH = 100
+
+_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 
 
 def _clean(text: str) -> str:
@@ -36,6 +38,8 @@ def _clean(text: str) -> str:
 
 def _extract_with_pdfplumber(pdf_path: str) -> str:
     """Return concatenated text from all pages using pdfplumber."""
+    import pdfplumber
+
     pages: list[str] = []
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
@@ -44,7 +48,7 @@ def _extract_with_pdfplumber(pdf_path: str) -> str:
     return "\n".join(pages)
 
 
-def _extract_with_ocr(pdf_path: str) -> str:
+def _extract_with_ocr_pdf(pdf_path: str) -> str:
     """Convert each PDF page to an image and run Tesseract OCR on it."""
     # Lazy imports — pdf2image/pytesseract use subprocess which triggers
     # fork() on macOS. Importing them only when needed avoids the ObjC
@@ -60,24 +64,36 @@ def _extract_with_ocr(pdf_path: str) -> str:
     return "\n".join(pages)
 
 
-def extract_text(pdf_path: str) -> str:
+def _extract_with_ocr_image(image_path: str) -> str:
+    """Run Tesseract OCR directly on a single image file (PNG/JPG)."""
+    import pytesseract
+    from PIL import Image
+
+    with Image.open(image_path) as img:
+        return pytesseract.image_to_string(img)
+
+
+def extract_text(file_path: str) -> str:
     """
-    Extract and clean all text from *pdf_path*.
+    Extract text from a PDF or image file.
 
-    1. Try pdfplumber first (fast, structure-preserving).
-    2. If the result is shorter than _MIN_TEXT_LENGTH characters the PDF is
-       probably scanned — fall back to pytesseract OCR via pdf2image.
-    3. Clean and return the final text.
-
-    Args:
-        pdf_path: Absolute or relative path to the PDF file.
-
-    Returns:
-        Cleaned plain-text string of the PDF contents.
+    - Images (.png/.jpg/.jpeg): OCR directly.
+    - PDFs: try pdfplumber first; fall back to OCR if output is too short
+      (e.g. scanned/image-only PDF).
     """
-    raw = _extract_with_pdfplumber(pdf_path)
+    ext = os.path.splitext(file_path)[1].lower()
 
-    if len(raw.strip()) < _MIN_TEXT_LENGTH:
-        raw = _extract_with_ocr(pdf_path)
+    if ext in _IMAGE_EXTENSIONS:
+        text = _extract_with_ocr_image(file_path)
+        return _clean(text)
 
-    return _clean(raw)
+    # Default: treat as PDF
+    try:
+        text = _extract_with_pdfplumber(file_path)
+    except Exception:
+        text = ""
+
+    if len(text.strip()) < _MIN_TEXT_LENGTH:
+        text = _extract_with_ocr_pdf(file_path)
+
+    return _clean(text)
