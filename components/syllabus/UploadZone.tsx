@@ -10,7 +10,6 @@ const MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
 type UploadState = "idle" | "dragover" | "uploading" | "success" | "error";
 
 interface UploadZoneProps {
-  /** Called after the PDF is stored and the Firestore doc is marked "processing". */
   onUploadComplete?: (downloadUrl: string, syllabusId: string) => void;
 }
 
@@ -22,7 +21,8 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   function validate(file: File): string | null {
-    if (file.type !== "application/pdf") return "Only PDF files are accepted.";
+    const allowed = ["application/pdf", "image/png", "image/jpeg"];
+    if (!allowed.includes(file.type)) return "Only PDF, PNG, and JPG files are accepted.";
     if (file.size > MAX_SIZE_BYTES) return "File exceeds the 20 MB limit.";
     return null;
   }
@@ -47,11 +47,10 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
       setErrorMsg(null);
 
       try {
-        // ── Step 1: create Firestore doc, get real syllabusId ────────────────
         const res = await fetch("/api/upload-syllabus", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ userId: user.uid, courseName: file.name.replace(/\.pdf$/i, "") }),
+          body: JSON.stringify({ userId: user.uid, courseName: file.name.replace(/\.(pdf|png|jpe?g)$/i, "") }),
         });
 
         if (!res.ok) {
@@ -61,12 +60,10 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
 
         const { syllabusId } = (await res.json()) as { syllabusId: string };
 
-        // ── Step 2: upload PDF to Storage using syllabusId as filename ────────
         const { downloadUrl, storagePath } = await uploadPDF(file, user.uid, syllabusId, (pct) => {
           setProgress(pct);
         });
 
-        // ── Step 3: update Firestore doc with the download URL ────────────────
         await updateSyllabus(syllabusId, {
           pdfUrl: downloadUrl,
           storagePath,
@@ -84,7 +81,6 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
     [user, onUploadComplete]
   );
 
-  // ── Drag events ─────────────────────────────────────────────────────────────
   function onDragOver(e: React.DragEvent) {
     e.preventDefault();
     if (state !== "uploading" && state !== "success") setState("dragover");
@@ -113,7 +109,6 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
     setErrorMsg(null);
   }
 
-  // ── Derived styles ───────────────────────────────────────────────────────────
   const isError = state === "error";
   const isDragover = state === "dragover";
 
@@ -132,10 +127,8 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
   const shadow = isDragover ? "shadow-[0_0_20px_2px_rgba(74,222,128,0.25)]" : "";
 
   return (
-    // <label> is the semantic wrapper for a custom file input — not an
-    // interactive control itself, so nested buttons/inputs are valid.
     <label
-      aria-label="Upload PDF syllabus"
+      aria-label="Upload syllabus"
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -151,17 +144,15 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf"
-        aria-label="Select a PDF syllabus file"
-        title="Select a PDF syllabus file"
+        accept="application/pdf,image/png,image/jpeg"
+        aria-label="Select a syllabus file"
+        title="Select a syllabus file"
         className="hidden"
         onChange={onInputChange}
-        // Prevent label's default click from firing twice when input is clicked directly
         onClick={(e) => e.stopPropagation()}
         disabled={state === "uploading" || state === "success"}
       />
 
-      {/* ── Idle / Dragover ──────────────────────────────────────────────────── */}
       {(state === "idle" || state === "dragover") && (
         <>
           <svg
@@ -173,13 +164,12 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-8m0 0-3 3m3-3 3 3M4.5 19.5h15A2.25 2.25 0 0 0 21.75 17V9a2.25 2.25 0 0 0-2.25-2.25H4.5A2.25 2.25 0 0 0 2.25 9v8a2.25 2.25 0 0 0 2.25 2.25Z" />
           </svg>
-          <p className="text-sm text-[#9CA3AF]">Drop your syllabus PDF here</p>
+          <p className="text-sm text-[#9CA3AF]">Drop your syllabus here</p>
           <p className="text-xs text-[#4ADE80]">or click to browse</p>
-          <p className="text-xs text-[#4B5563]">PDF only · max 20 MB</p>
+          <p className="text-xs text-[#4B5563]">PDF, PNG, JPG · max 20 MB</p>
         </>
       )}
 
-      {/* ── Uploading ───────────────────────────────────────────────────────── */}
       {state === "uploading" && (
         <div className="flex w-full max-w-xs flex-col items-center gap-3">
           <p className="text-sm text-[#9CA3AF]">Uploading… {progress}%</p>
@@ -193,7 +183,6 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
         </div>
       )}
 
-      {/* ── Success ─────────────────────────────────────────────────────────── */}
       {state === "success" && (
         <>
           <svg className="h-10 w-10 text-[#4ADE80]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -203,7 +192,6 @@ export default function UploadZone({ onUploadComplete }: UploadZoneProps) {
         </>
       )}
 
-      {/* ── Error ───────────────────────────────────────────────────────────── */}
       {state === "error" && (
         <>
           <svg className="h-10 w-10 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
