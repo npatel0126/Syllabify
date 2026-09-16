@@ -35,3 +35,8 @@ const adminApp = getAdminApp();
 export const adminDb = getFirestore(adminApp);
 export const adminStorage = getStorage(adminApp);
 export const adminAuth = getAuth(adminApp);
+
+/** Verify a Firebase ID token and return the decoded claims. */
+export async function verifyIdToken(token: string) {
+  return adminAuth.verifyIdToken(token);
+}
